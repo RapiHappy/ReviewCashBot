@@ -1,199 +1,206 @@
+```html
 <!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ReviewCash</title>
-
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
 <style>
 /* ===== THEME ===== */
-:root{
-  --bg:#f2f4f8;
-  --surface:#ffffff;
-  --text:#0f172a;
-  --muted:#64748b;
-  --primary:#2563eb;
-  --success:#16a34a;
-  --border:#e2e8f0;
+:root {
+  --bg: #f2f4f8;
+  --surface: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --primary: #2563eb;
+  --success: #16a34a;
+  --border: #e2e8f0;
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --transition: all 0.3s ease;
 }
-
-body.dark{
-  --bg:#0b0f19;
-  --surface:#121826;
-  --text:#f8fafc;
-  --muted:#94a3b8;
-  --primary:#3b82f6;
-  --border:#1e293b;
+body.dark {
+  --bg: #0b0f19;
+  --surface: #121826;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --primary: #3b82f6;
+  --border: #1e293b;
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
 }
-
 /* ===== BASE ===== */
-*{
-  box-sizing:border-box;
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
+* {
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
-
-body{
-  margin:0;
-  background:var(--bg);
-  color:var(--text);
-  height:100vh;
-  display:flex;
-  flex-direction:column;
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  transition: var(--transition);
 }
-
 /* ===== HEADER ===== */
-header{
-  padding:18px 18px 10px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
+header {
+  padding: 18px 18px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
 }
-
-header h1{
-  font-size:22px;
-  margin:0;
+header h1 {
+  font-size: 22px;
+  margin: 0;
 }
-
-header .icon{
-  font-size:20px;
-  cursor:pointer;
+header .icon {
+  font-size: 20px;
+  cursor: pointer;
+  transition: var(--transition);
 }
-
+header .icon:hover {
+  transform: scale(1.1);
+}
 /* ===== MAIN ===== */
-main{
-  flex:1;
-  padding:14px;
-  overflow-y:auto;
+main {
+  flex: 1;
+  padding: 14px;
+  overflow-y: auto;
+  transition: var(--transition);
 }
-
 /* ===== CARDS ===== */
-.card{
-  background:var(--surface);
-  border-radius:20px;
-  padding:16px;
-  margin-bottom:14px;
-  border:1px solid var(--border);
+.card {
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 16px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  transition: var(--transition);
 }
-
+.card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
 /* ===== TASK ===== */
-.task{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
+.task {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-
-.task-title{
-  font-weight:600;
-  margin-bottom:4px;
+.task-title {
+  font-weight: 600;
+  margin-bottom: 4px;
 }
-
-.task-sub{
-  font-size:13px;
-  color:var(--muted);
+.task-sub {
+  font-size: 13px;
+  color: var(--muted);
 }
-
-.reward{
-  font-weight:700;
-  color:var(--success);
+.reward {
+  font-weight: 700;
+  color: var(--success);
+  white-space: nowrap;
 }
-
 /* ===== PROFILE ===== */
-.profile{
-  display:flex;
-  align-items:center;
-  gap:14px;
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
-
-.avatar{
-  width:64px;
-  height:64px;
-  border-radius:50%;
-  object-fit:cover;
-  background:#ccc;
+.avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #ccc;
+  border: 2px solid var(--border);
 }
-
-.balance{
-  font-size:36px;
-  font-weight:800;
-  margin-top:6px;
+.balance {
+  font-size: 36px;
+  font-weight: 800;
+  margin-top: 6px;
 }
-
 /* ===== BUTTONS ===== */
-button{
-  border:none;
-  border-radius:16px;
-  padding:14px;
-  font-size:15px;
-  font-weight:600;
-  cursor:pointer;
+button {
+  border: none;
+  border-radius: 16px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
 }
-
-.btn-primary{
-  background:var(--primary);
-  color:white;
-  width:100%;
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  width: 100%;
 }
-
-.btn-outline{
-  background:transparent;
-  color:var(--primary);
-  border:1px solid var(--primary);
-  width:100%;
+.btn-primary:hover {
+  background: #1d4ed8;
 }
-
+.btn-outline {
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  width: 100%;
+}
+.btn-outline:hover {
+  background: rgba(37, 99, 235, 0.1);
+}
 /* ===== NAV ===== */
-nav{
-  display:flex;
-  justify-content:space-around;
-  background:var(--surface);
-  border-top:1px solid var(--border);
-  padding:10px 0;
+nav {
+  display: flex;
+  justify-content: space-around;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 10px 0;
+  transition: var(--transition);
 }
-
-nav button{
-  background:none;
-  color:var(--muted);
-  font-size:13px;
+nav button {
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  transition: var(--transition);
 }
-
-nav button.active{
-  color:var(--primary);
+nav button.active {
+  color: var(--primary);
+  font-weight: 600;
 }
-
+nav button:hover {
+  color: var(--primary);
+}
 /* ===== FLOAT BUTTON ===== */
-.fab{
-  position:fixed;
-  right:18px;
-  bottom:80px;
-  width:58px;
-  height:58px;
-  border-radius:50%;
-  background:var(--primary);
-  color:white;
-  font-size:28px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  box-shadow:0 10px 30px rgba(37,99,235,.45);
-  cursor:pointer;
+.fab {
+  position: fixed;
+  right: 18px;
+  bottom: 80px;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  font-size: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 30px rgba(37, 99, 235, .45);
+  cursor: pointer;
+  transition: var(--transition);
 }
-
+.fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 15px 35px rgba(37, 99, 235, .55);
+}
 /* ===== UTIL ===== */
-.hidden{display:none}
+.hidden { display: none; }
 </style>
 </head>
-
 <body>
-
 <header>
   <h1 id="title">Задания</h1>
   <div class="icon" id="support">🎧</div>
 </header>
-
 <main>
-
 <!-- TASKS -->
 <section id="tasks">
   <div class="card task">
@@ -203,7 +210,6 @@ nav button.active{
     </div>
     <div class="reward">+50 ₽</div>
   </div>
-
   <div class="card task">
     <div>
       <div class="task-title">Google Maps</div>
@@ -211,7 +217,6 @@ nav button.active{
     </div>
     <div class="reward">+70 ₽</div>
   </div>
-
   <div class="card task">
     <div>
       <div class="task-title">Подписка Telegram</div>
@@ -220,7 +225,6 @@ nav button.active{
     <div class="reward">+20 ₽</div>
   </div>
 </section>
-
 <!-- PROFILE -->
 <section id="profile" class="hidden">
   <div class="card profile">
@@ -231,31 +235,24 @@ nav button.active{
     </div>
     <div class="icon" id="theme">🌓</div>
   </div>
-
   <div class="card">
     <div class="task-sub">Баланс</div>
     <div class="balance">0 ₽</div>
   </div>
-
   <div class="card">
     <button class="btn-primary">Вывести</button><br><br>
     <button class="btn-outline">Пополнить</button>
   </div>
 </section>
-
 </main>
-
 <div class="fab">+</div>
-
 <nav>
   <button id="tabTasks" class="active">Задания</button>
   <button id="tabProfile">Профиль</button>
 </nav>
-
 <script>
 const tg = Telegram.WebApp;
 tg.expand();
-
 /* USER */
 const user = tg.initDataUnsafe?.user;
 if(user){
@@ -265,43 +262,38 @@ if(user){
     document.getElementById("avatar").src = user.photo_url;
   }
 }
-
 /* TABS */
-const tabTasks=document.getElementById("tabTasks");
-const tabProfile=document.getElementById("tabProfile");
-const tasks=document.getElementById("tasks");
-const profile=document.getElementById("profile");
-const title=document.getElementById("title");
-
-tabTasks.onclick=()=>{
+const tabTasks = document.getElementById("tabTasks");
+const tabProfile = document.getElementById("tabProfile");
+const tasks = document.getElementById("tasks");
+const profile = document.getElementById("profile");
+const title = document.getElementById("title");
+tabTasks.onclick = () => {
   tabTasks.classList.add("active");
   tabProfile.classList.remove("active");
   tasks.classList.remove("hidden");
   profile.classList.add("hidden");
-  title.innerText="Задания";
+  title.innerText = "Задания";
 };
-
-tabProfile.onclick=()=>{
+tabProfile.onclick = () => {
   tabProfile.classList.add("active");
   tabTasks.classList.remove("active");
   profile.classList.remove("hidden");
   tasks.classList.add("hidden");
-  title.innerText="Профиль";
+  title.innerText = "Профиль";
 };
-
 /* THEME */
-const themeBtn=document.getElementById("theme");
-themeBtn.onclick=()=>{
+const themeBtn = document.getElementById("theme");
+themeBtn.onclick = () => {
   document.body.classList.toggle("dark");
-  localStorage.theme=document.body.classList.contains("dark")?"dark":"light";
+  localStorage.theme = document.body.classList.contains("dark") ? "dark" : "light";
 };
-if(localStorage.theme==="dark") document.body.classList.add("dark");
-
+if (localStorage.theme === "dark") document.body.classList.add("dark");
 /* SUPPORT */
-document.getElementById("support").onclick=()=>{
+document.getElementById("support").onclick = () => {
   tg.openTelegramLink("https://t.me/your_support");
 };
 </script>
-
 </body>
 </html>
+```
