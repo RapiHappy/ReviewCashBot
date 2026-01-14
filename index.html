@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ReviewCash</title>
+
+  <!-- Telegram WebApp -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --text: #1c1c1e;
+      --sub: #6c6c70;
+      --primary: #4f7cff;
+      --border: #e6e6eb;
+    }
+
+    body.dark {
+      --bg: #0f1115;
+      --card: #181b22;
+      --text: #ffffff;
+      --sub: #9aa0a6;
+      --primary: #4f7cff;
+      --border: #2a2d36;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 16px;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    main {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+    }
+
+    .task {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .task span {
+      font-size: 14px;
+      color: var(--sub);
+    }
+
+    .btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn.secondary {
+      background: transparent;
+      color: var(--primary);
+      border: 1px solid var(--primary);
+    }
+
+    .profile {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: #ccc;
+      object-fit: cover;
+    }
+
+    .balance {
+      font-size: 28px;
+      font-weight: 700;
+      margin-top: 10px;
+    }
+
+    .nav {
+      display: flex;
+      justify-content: space-around;
+      padding: 10px;
+      border-top: 1px solid var(--border);
+      background: var(--card);
+    }
+
+    .nav button {
+      background: none;
+      border: none;
+      font-size: 14px;
+      color: var(--sub);
+      cursor: pointer;
+    }
+
+    .nav button.active {
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    .theme-toggle {
+      margin-left: auto;
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    .support {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<header id="header">Задания</header>
+<div class="support">🎧</div>
+
+<main>
+  <!-- ЗАДАНИЯ -->
+  <section id="tasks">
+    <div class="card task">
+      <div>
+        <strong>Отзыв Яндекс Карты</strong><br>
+        <span>Оплата: 50 ₽</span>
+      </div>
+      <button class="btn">Выполнить</button>
+    </div>
+
+    <div class="card task">
+      <div>
+        <strong>Отзыв Google Maps</strong><br>
+        <span>Оплата: 70 ₽</span>
+      </div>
+      <button class="btn">Выполнить</button>
+    </div>
+
+    <div class="card task">
+      <div>
+        <strong>Подписка на Telegram</strong><br>
+        <span>Оплата: 20 ₽</span>
+      </div>
+      <button class="btn">Выполнить</button>
+    </div>
+  </section>
+
+  <!-- ПРОФИЛЬ -->
+  <section id="profile" class="hidden">
+    <div class="card profile">
+      <img id="avatar" class="avatar">
+      <div>
+        <div id="username">@user</div>
+        <div class="theme-toggle" id="themeToggle">🌓</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div>Баланс</div>
+      <div class="balance">0 ₽</div>
+    </div>
+
+    <div class="card">
+      <button class="btn" style="width:100%;margin-bottom:10px;">Вывести</button>
+      <button class="btn secondary" style="width:100%;">Пополнить</button>
+    </div>
+  </section>
+</main>
+
+<nav class="nav">
+  <button id="tabTasks" class="active">Задания</button>
+  <button id="tabProfile">Профиль</button>
+</nav>
+
+<script>
+  const tg = window.Telegram.WebApp;
+  tg.expand();
+
+  const user = tg.initDataUnsafe?.user;
+
+  if (user) {
+    document.getElementById('username').innerText =
+      user.username ? '@' + user.username : user.first_name;
+
+    if (user.photo_url) {
+      document.getElementById('avatar').src = user.photo_url;
+    }
+  }
+
+  const tasksTab = document.getElementById('tabTasks');
+  const profileTab = document.getElementById('tabProfile');
+  const tasks = document.getElementById('tasks');
+  const profile = document.getElementById('profile');
+  const header = document.getElementById('header');
+
+  tasksTab.onclick = () => {
+    tasks.classList.remove('hidden');
+    profile.classList.add('hidden');
+    tasksTab.classList.add('active');
+    profileTab.classList.remove('active');
+    header.innerText = 'Задания';
+  };
+
+  profileTab.onclick = () => {
+    profile.classList.remove('hidden');
+    tasks.classList.add('hidden');
+    profileTab.classList.add('active');
+    tasksTab.classList.remove('active');
+    header.innerText = 'Профиль';
+  };
+
+  const themeToggle = document.getElementById('themeToggle');
+  themeToggle.onclick = () => {
+    document.body.classList.toggle('dark');
+    localStorage.setItem('theme',
+      document.body.classList.contains('dark') ? 'dark' : 'light'
+    );
+  };
+
+  if (localStorage.getItem('theme') === 'dark') {
+    document.body.classList.add('dark');
+  }
+
+  document.querySelector('.support').onclick = () => {
+    tg.openTelegramLink('https://t.me/your_support');
+  };
+</script>
+
+</body>
+</html>
