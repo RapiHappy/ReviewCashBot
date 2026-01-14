@@ -8,31 +8,33 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
 <style>
-:root {
-  --bg:#f5f7fb;
-  --card:#ffffff;
-  --text:#111;
-  --sub:#7a7f8c;
-  --primary:#4f7cff;
-  --green:#22c55e;
-  --border:#e6e8ef;
+/* ===== THEME ===== */
+:root{
+  --bg:#f2f4f8;
+  --surface:#ffffff;
+  --text:#0f172a;
+  --muted:#64748b;
+  --primary:#2563eb;
+  --success:#16a34a;
+  --border:#e2e8f0;
 }
 
-body.dark {
-  --bg:#0e1117;
-  --card:#161b22;
-  --text:#fff;
-  --sub:#9aa0a6;
-  --primary:#4f7cff;
-  --border:#262c36;
+body.dark{
+  --bg:#0b0f19;
+  --surface:#121826;
+  --text:#f8fafc;
+  --muted:#94a3b8;
+  --primary:#3b82f6;
+  --border:#1e293b;
 }
 
-* {
+/* ===== BASE ===== */
+*{
   box-sizing:border-box;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
 }
 
-body {
+body{
   margin:0;
   background:var(--bg);
   color:var(--text);
@@ -41,83 +43,70 @@ body {
   flex-direction:column;
 }
 
-header {
-  padding:16px;
-  font-size:22px;
-  font-weight:700;
+/* ===== HEADER ===== */
+header{
+  padding:18px 18px 10px;
   display:flex;
   justify-content:space-between;
   align-items:center;
 }
 
-.support {
+header h1{
+  font-size:22px;
+  margin:0;
+}
+
+header .icon{
   font-size:20px;
   cursor:pointer;
 }
 
-main {
+/* ===== MAIN ===== */
+main{
   flex:1;
-  padding:16px;
-  overflow:auto;
+  padding:14px;
+  overflow-y:auto;
 }
 
-.card {
-  background:var(--card);
-  border-radius:18px;
+/* ===== CARDS ===== */
+.card{
+  background:var(--surface);
+  border-radius:20px;
   padding:16px;
   margin-bottom:14px;
   border:1px solid var(--border);
-  box-shadow:0 6px 20px rgba(0,0,0,.05);
 }
 
-.balance {
-  font-size:34px;
-  font-weight:800;
-}
-
-.btn {
-  background:var(--primary);
-  color:#fff;
-  border:none;
-  border-radius:14px;
-  padding:12px;
-  font-weight:600;
-  width:100%;
-  cursor:pointer;
-}
-
-.btn.outline {
-  background:none;
-  color:var(--primary);
-  border:1px solid var(--primary);
-}
-
-.task {
+/* ===== TASK ===== */
+.task{
   display:flex;
   justify-content:space-between;
-  gap:10px;
+  align-items:center;
 }
 
-.task small {
-  color:var(--sub);
-}
-
-.badge {
-  background:rgba(79,124,255,.15);
-  color:var(--primary);
-  padding:4px 10px;
-  border-radius:20px;
-  font-size:12px;
+.task-title{
   font-weight:600;
+  margin-bottom:4px;
 }
 
-.profile {
+.task-sub{
+  font-size:13px;
+  color:var(--muted);
+}
+
+.reward{
+  font-weight:700;
+  color:var(--success);
+}
+
+/* ===== PROFILE ===== */
+.profile{
   display:flex;
   align-items:center;
   gap:14px;
 }
 
-.avatar {
+.avatar{
   width:64px;
   height:64px;
   border-radius:50%;
@@ -125,158 +114,191 @@ main {
   background:#ccc;
 }
 
-.nav {
+.balance{
+  font-size:36px;
+  font-weight:800;
+  margin-top:6px;
+}
+
+/* ===== BUTTONS ===== */
+button{
+  border:none;
+  border-radius:16px;
+  padding:14px;
+  font-size:15px;
+  font-weight:600;
+  cursor:pointer;
+}
+
+.btn-primary{
+  background:var(--primary);
+  color:white;
+  width:100%;
+}
+
+.btn-outline{
+  background:transparent;
+  color:var(--primary);
+  border:1px solid var(--primary);
+  width:100%;
+}
+
+/* ===== NAV ===== */
+nav{
   display:flex;
   justify-content:space-around;
-  padding:10px;
-  background:var(--card);
+  background:var(--surface);
   border-top:1px solid var(--border);
+  padding:10px 0;
 }
 
-.nav button {
+nav button{
   background:none;
-  border:none;
+  color:var(--muted);
   font-size:13px;
-  color:var(--sub);
-  font-weight:600;
 }
 
-.nav button.active {
+nav button.active{
   color:var(--primary);
 }
 
-.hidden {display:none}
-
-.fab {
+/* ===== FLOAT BUTTON ===== */
+.fab{
   position:fixed;
+  right:18px;
   bottom:80px;
-  right:20px;
-  width:56px;
-  height:56px;
+  width:58px;
+  height:58px;
   border-radius:50%;
   background:var(--primary);
-  color:#fff;
+  color:white;
   font-size:28px;
   display:flex;
   align-items:center;
   justify-content:center;
+  box-shadow:0 10px 30px rgba(37,99,235,.45);
   cursor:pointer;
-  box-shadow:0 10px 30px rgba(79,124,255,.4);
 }
+
+/* ===== UTIL ===== */
+.hidden{display:none}
 </style>
 </head>
 
 <body>
 
 <header>
-  <span id="title">Задания</span>
-  <span class="support">🎧</span>
+  <h1 id="title">Задания</h1>
+  <div class="icon" id="support">🎧</div>
 </header>
 
 <main>
 
-<!-- ЗАДАНИЯ -->
+<!-- TASKS -->
 <section id="tasks">
   <div class="card task">
     <div>
-      <strong>Отзыв Яндекс Карты</strong><br>
-      <small>Оставить отзыв</small>
+      <div class="task-title">Отзыв Яндекс Карты</div>
+      <div class="task-sub">Оставить отзыв</div>
     </div>
-    <div>
-      <div class="badge">+50 ₽</div>
-    </div>
+    <div class="reward">+50 ₽</div>
   </div>
 
   <div class="card task">
     <div>
-      <strong>Google Maps</strong><br>
-      <small>Написать отзыв</small>
+      <div class="task-title">Google Maps</div>
+      <div class="task-sub">Написать отзыв</div>
     </div>
-    <div class="badge">+70 ₽</div>
+    <div class="reward">+70 ₽</div>
   </div>
 
   <div class="card task">
     <div>
-      <strong>Подписка на Telegram</strong><br>
-      <small>Подписаться на канал</small>
+      <div class="task-title">Подписка Telegram</div>
+      <div class="task-sub">Подписаться на канал</div>
     </div>
-    <div class="badge">+20 ₽</div>
+    <div class="reward">+20 ₽</div>
   </div>
 </section>
 
-<!-- ПРОФИЛЬ -->
+<!-- PROFILE -->
 <section id="profile" class="hidden">
   <div class="card profile">
     <img id="avatar" class="avatar">
     <div>
       <div id="username">@user</div>
-      <small style="color:var(--sub)">Пользователь</small>
+      <div class="task-sub">Участник ReviewCash</div>
     </div>
-    <div style="margin-left:auto;cursor:pointer" id="theme">🌓</div>
+    <div class="icon" id="theme">🌓</div>
   </div>
 
   <div class="card">
-    <small>Баланс</small>
+    <div class="task-sub">Баланс</div>
     <div class="balance">0 ₽</div>
   </div>
 
   <div class="card">
-    <button class="btn">Вывести средства</button>
-    <br><br>
-    <button class="btn outline">Пополнить баланс</button>
+    <button class="btn-primary">Вывести</button><br><br>
+    <button class="btn-outline">Пополнить</button>
   </div>
 </section>
 
 </main>
 
-<div class="fab">＋</div>
+<div class="fab">+</div>
 
-<nav class="nav">
-  <button id="t1" class="active">Задания</button>
-  <button id="t2">Профиль</button>
+<nav>
+  <button id="tabTasks" class="active">Задания</button>
+  <button id="tabProfile">Профиль</button>
 </nav>
 
 <script>
 const tg = Telegram.WebApp;
 tg.expand();
 
+/* USER */
 const user = tg.initDataUnsafe?.user;
 if(user){
   document.getElementById("username").innerText =
     user.username ? "@"+user.username : user.first_name;
-  if(user.photo_url) document.getElementById("avatar").src = user.photo_url;
+  if(user.photo_url){
+    document.getElementById("avatar").src = user.photo_url;
+  }
 }
 
-const t1=document.getElementById("t1");
-const t2=document.getElementById("t2");
+/* TABS */
+const tabTasks=document.getElementById("tabTasks");
+const tabProfile=document.getElementById("tabProfile");
 const tasks=document.getElementById("tasks");
 const profile=document.getElementById("profile");
 const title=document.getElementById("title");
 
-t1.onclick=()=>{
-  t1.classList.add("active");
-  t2.classList.remove("active");
+tabTasks.onclick=()=>{
+  tabTasks.classList.add("active");
+  tabProfile.classList.remove("active");
   tasks.classList.remove("hidden");
   profile.classList.add("hidden");
   title.innerText="Задания";
 };
 
-t2.onclick=()=>{
-  t2.classList.add("active");
-  t1.classList.remove("active");
+tabProfile.onclick=()=>{
+  tabProfile.classList.add("active");
+  tabTasks.classList.remove("active");
   profile.classList.remove("hidden");
   tasks.classList.add("hidden");
   title.innerText="Профиль";
 };
 
-document.getElementById("theme").onclick=()=>{
+/* THEME */
+const themeBtn=document.getElementById("theme");
+themeBtn.onclick=()=>{
   document.body.classList.toggle("dark");
   localStorage.theme=document.body.classList.contains("dark")?"dark":"light";
 };
-
 if(localStorage.theme==="dark") document.body.classList.add("dark");
 
-document.querySelector(".support").onclick=()=>{
+/* SUPPORT */
+document.getElementById("support").onclick=()=>{
   tg.openTelegramLink("https://t.me/your_support");
 };
 </script>
