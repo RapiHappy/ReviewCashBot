@@ -1,299 +1,405 @@
-```html
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ReviewCash</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<style>
-/* ===== THEME ===== */
-:root {
-  --bg: #f2f4f8;
-  --surface: #ffffff;
-  --text: #0f172a;
-  --muted: #64748b;
-  --primary: #2563eb;
-  --success: #16a34a;
-  --border: #e2e8f0;
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --transition: all 0.3s ease;
-}
-body.dark {
-  --bg: #0b0f19;
-  --surface: #121826;
-  --text: #f8fafc;
-  --muted: #94a3b8;
-  --primary: #3b82f6;
-  --border: #1e293b;
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
-}
-/* ===== BASE ===== */
-* {
-  box-sizing: border-box;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  transition: var(--transition);
-}
-/* ===== HEADER ===== */
-header {
-  padding: 18px 18px 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid var(--border);
-}
-header h1 {
-  font-size: 22px;
-  margin: 0;
-}
-header .icon {
-  font-size: 20px;
-  cursor: pointer;
-  transition: var(--transition);
-}
-header .icon:hover {
-  transform: scale(1.1);
-}
-/* ===== MAIN ===== */
-main {
-  flex: 1;
-  padding: 14px;
-  overflow-y: auto;
-  transition: var(--transition);
-}
-/* ===== CARDS ===== */
-.card {
-  background: var(--surface);
-  border-radius: 20px;
-  padding: 16px;
-  margin-bottom: 14px;
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
-  transition: var(--transition);
-}
-.card:hover {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-/* ===== TASK ===== */
-.task {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.task-title {
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-.task-sub {
-  font-size: 13px;
-  color: var(--muted);
-}
-.reward {
-  font-weight: 700;
-  color: var(--success);
-  white-space: nowrap;
-}
-/* ===== PROFILE ===== */
-.profile {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.avatar {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: #ccc;
-  border: 2px solid var(--border);
-}
-.balance {
-  font-size: 36px;
-  font-weight: 800;
-  margin-top: 6px;
-}
-/* ===== BUTTONS ===== */
-button {
-  border: none;
-  border-radius: 16px;
-  padding: 14px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: var(--transition);
-}
-.btn-primary {
-  background: var(--primary);
-  color: white;
-  width: 100%;
-}
-.btn-primary:hover {
-  background: #1d4ed8;
-}
-.btn-outline {
-  background: transparent;
-  color: var(--primary);
-  border: 1px solid var(--primary);
-  width: 100%;
-}
-.btn-outline:hover {
-  background: rgba(37, 99, 235, 0.1);
-}
-/* ===== NAV ===== */
-nav {
-  display: flex;
-  justify-content: space-around;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  padding: 10px 0;
-  transition: var(--transition);
-}
-nav button {
-  background: none;
-  color: var(--muted);
-  font-size: 13px;
-  transition: var(--transition);
-}
-nav button.active {
-  color: var(--primary);
-  font-weight: 600;
-}
-nav button:hover {
-  color: var(--primary);
-}
-/* ===== FLOAT BUTTON ===== */
-.fab {
-  position: fixed;
-  right: 18px;
-  bottom: 80px;
-  width: 58px;
-  height: 58px;
-  border-radius: 50%;
-  background: var(--primary);
-  color: white;
-  font-size: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 10px 30px rgba(37, 99, 235, .45);
-  cursor: pointer;
-  transition: var(--transition);
-}
-.fab:hover {
-  transform: scale(1.05);
-  box-shadow: 0 15px 35px rgba(37, 99, 235, .55);
-}
-/* ===== UTIL ===== */
-.hidden { display: none; }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>ReviewCash Ultimate Pro</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      /* Темная тема (основная) */
+      --bg: #05070a;
+      --card-bg: #0e1218;
+      --text-main: #ffffff;
+      --text-dim: #94a3b8;
+      --glass: rgba(255, 255, 255, 0.04);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --accent-cyan: #00eaff;
+      --accent-gold: #ffcc00;
+      --accent-green: #00ff88;
+      --nav-bg: rgba(15, 20, 26, 0.95);
+      --shadow: rgba(0,0,0,0.5);
+    }
+
+    body.light-mode {
+      --bg: #f2f4f7;
+      --card-bg: #ffffff;
+      --text-main: #1a1e23;
+      --text-dim: #64748b;
+      --glass: rgba(0, 0, 0, 0.03);
+      --glass-border: rgba(0, 0, 0, 0.08);
+      --accent-cyan: #0070f3;
+      --accent-gold: #f5a623;
+      --nav-bg: rgba(255, 255, 255, 0.95);
+      --shadow: rgba(0,0,0,0.05);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+    body { 
+      margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; 
+      background: var(--bg); color: var(--text-main); min-height: 100vh;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    .app-container { max-width: 500px; margin: 0 auto; padding: 20px 16px 150px; }
+    .hidden { display: none !important; }
+
+    /* --- КАРТОЧКИ --- */
+    .card {
+      background: var(--card-bg); border: 1px solid var(--glass-border);
+      border-radius: 30px; padding: 24px; margin-bottom: 20px;
+      box-shadow: 0 10px 30px var(--shadow);
+    }
+
+    /* --- ПРОФИЛЬ И БАЛАНС --- */
+    .profile-header { display: flex; align-items: center; gap: 20px; }
+    .avatar-ring {
+      width: 80px; height: 80px; border-radius: 50%; padding: 3px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-gold));
+      display: flex; align-items: center; justify-content: center;
+    }
+    .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 3px solid var(--bg); }
+    
+    .balance-stack { display: flex; flex-direction: column; gap: 2px; }
+    .bal-rub { font-size: 32px; font-weight: 800; color: var(--accent-cyan); letter-spacing: -1px; }
+    .bal-star { font-size: 18px; font-weight: 700; color: var(--accent-gold); display: flex; align-items: center; gap: 6px; }
+
+    /* --- КРУГЛАЯ КНОПКА + --- */
+    .fab-wrap { position: fixed; right: 24px; bottom: 125px; z-index: 1000; }
+    .fab-btn {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: linear-gradient(135deg, #00eaff, #0088ff);
+      color: #000; display: flex; align-items: center; justify-content: center;
+      font-size: 42px; cursor: pointer;
+      box-shadow: 0 15px 35px rgba(0, 234, 255, 0.4);
+      transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .fab-btn:active { transform: scale(0.85); }
+
+    /* --- КНОПКИ --- */
+    .btn {
+      border: none; border-radius: 20px; padding: 16px; font-weight: 800; font-size: 14px;
+      cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-main { background: linear-gradient(135deg, var(--accent-cyan), #0088ff); color: #fff; }
+    .btn-secondary { background: var(--glass); color: var(--text-main); border: 1px solid var(--glass-border); }
+    
+    .btn-action {
+        background: rgba(0, 234, 255, 0.1); color: var(--accent-cyan);
+        border: 1px solid rgba(0, 234, 255, 0.2); padding: 12px 24px; 
+        border-radius: 14px; font-size: 13px; font-weight: 700;
+    }
+    .btn-action.working { background: var(--accent-green); color: #000; border: none; }
+
+    /* --- ЗАДАНИЯ --- */
+    .task-item {
+      background: var(--glass); border: 1px solid var(--glass-border);
+      border-radius: 28px; padding: 20px; margin-bottom: 12px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .brand-box { 
+      width: 54px; height: 54px; border-radius: 16px; background: #fff; 
+      display: flex; align-items: center; justify-content: center; padding: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .brand-box img { width: 100%; height: 100%; object-fit: contain; }
+
+    /* --- НАВИГАЦИЯ --- */
+    .nav-bar {
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      background: var(--nav-bg); backdrop-filter: blur(25px);
+      border: 1px solid var(--glass-border); padding: 8px; border-radius: 35px;
+      display: flex; gap: 5px; z-index: 1000;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+    .nav-item { padding: 14px 34px; border-radius: 26px; color: var(--text-dim); font-weight: 700; cursor: pointer; transition: 0.3s; }
+    .nav-item.active { background: var(--text-main); color: var(--bg); }
+
+    /* --- МОДАЛЬНЫЕ ОКНА --- */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.92); backdrop-filter: blur(15px);
+      z-index: 2000; display: none; align-items: flex-end;
+    }
+    .overlay.active { display: flex; }
+    .modal {
+      width: 100%; background: var(--card-bg); border-radius: 45px 45px 0 0;
+      padding: 35px 24px 60px; color: var(--text-main); border-top: 1px solid var(--glass-border);
+    }
+    input, select {
+      width: 100%; background: var(--glass); border: 1px solid var(--glass-border);
+      padding: 18px; border-radius: 20px; color: var(--text-main); font-size: 16px; margin-top: 10px;
+    }
+
+    .total-badge {
+      margin-top: 20px; background: rgba(0, 234, 255, 0.05); padding: 22px;
+      border-radius: 28px; border: 1px dashed var(--glass-border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+
+    .menu-item {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 20px; border-radius: 22px; background: var(--glass);
+        margin-top: 10px; cursor: pointer; font-weight: 700; border: 1px solid var(--glass-border);
+    }
+
+    .pay-opt {
+      background: var(--glass); border: 1px solid var(--glass-border);
+      border-radius: 22px; padding: 18px; margin-top: 12px;
+      display: flex; align-items: center; gap: 15px; cursor: pointer;
+    }
+    .pay-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; }
+  </style>
 </head>
 <body>
-<header>
-  <h1 id="title">Задания</h1>
-  <div class="icon" id="support">🎧</div>
-</header>
-<main>
-<!-- TASKS -->
-<section id="tasks">
-  <div class="card task">
-    <div>
-      <div class="task-title">Отзыв Яндекс Карты</div>
-      <div class="task-sub">Оставить отзыв</div>
+
+  <div class="app-container">
+    
+    <section id="view-tasks">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+        <h2 style="font-size: 34px; font-weight: 800; margin: 0;">Задания</h2>
+        <div style="display: flex; background: var(--glass); padding: 4px; border-radius: 16px; border: 1px solid var(--glass-border);">
+            <div class="nav-item active" style="padding: 8px 18px; font-size: 12px;" onclick="setFilter('all')" id="f-all">Все</div>
+            <div class="nav-item" style="padding: 8px 18px; font-size: 12px;" onclick="setFilter('my')" id="f-my">Мои</div>
+        </div>
+      </div>
+      <div id="tasks-list"></div>
+    </section>
+
+    <section id="view-profile" class="hidden">
+      <div class="card">
+        <div class="profile-header">
+          <div class="avatar-ring"><img class="avatar-img" id="u-pic" src=""></div>
+          <div class="balance-stack">
+            <div id="u-name" style="color:var(--text-dim); font-size: 14px; font-weight: 700;">@username</div>
+            <div id="u-bal-rub" class="bal-rub">0 ₽</div>
+            <div id="u-bal-star" class="bal-star">0 ⭐</div>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:28px;">
+            <button class="btn btn-main" onclick="openModal('m-topup')">Пополнить</button>
+            <button class="btn btn-secondary" onclick="openModal('m-withdraw')">Вывести</button>
+        </div>
+      </div>
+
+      <div class="card" style="padding: 15px;">
+        <div class="menu-item" onclick="toggleTheme()">
+            <span>🌗 Сменить тему</span>
+            <small style="opacity: 0.6;">Light / Dark</small>
+        </div>
+        <div class="menu-item" onclick="tg.openTelegramLink('https://t.me/LolikMoney')">
+            <span style="color: var(--accent-cyan);">💬 Поддержка @LolikMoney</span>
+            <span style="opacity: 0.3;">→</span>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <nav class="nav-bar">
+    <div class="nav-item active" id="tab-tasks" onclick="showTab('tasks')">Задания</div>
+    <div class="nav-item" id="tab-profile" onclick="showTab('profile')">Профиль</div>
+  </nav>
+
+  <div class="fab-wrap" onclick="openModal('m-create')">
+    <div class="fab-btn">+</div>
+  </div>
+
+  <div id="m-create" class="overlay" onclick="if(event.target==this)closeModal()">
+    <div class="modal">
+        <h2 style="margin:0 0 5px;">Новое задание</h2>
+        <p style="color:var(--text-dim); font-size:14px; margin-bottom:20px;">Настройте параметры продвижения</p>
+        
+        <label style="font-size:11px; font-weight:800; opacity:0.5; margin-left:12px; text-transform:uppercase;">Тип площадки</label>
+        <select id="t-type" onchange="recalc()">
+            <option value="ya" data-p="120">📍 Яндекс Карты (120₽ / шт)</option>
+            <option value="gm" data-p="75">🌍 Google Maps (75₽ / шт)</option>
+            <option value="tg" data-p="15">✈️ Telegram (15₽ / шт)</option>
+        </select>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:15px;">
+            <div>
+                <label style="font-size:11px; font-weight:800; opacity:0.5; margin-left:12px; text-transform:uppercase;">Количество</label>
+                <input type="number" id="t-qty" value="10" oninput="recalc()">
+            </div>
+            <div>
+                <label style="font-size:11px; font-weight:800; opacity:0.5; margin-left:12px; text-transform:uppercase;">Валюта</label>
+                <select id="t-cur" onchange="recalc()">
+                    <option value="rub">RUB (₽)</option>
+                    <option value="star">Stars (⭐)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="total-badge">
+            <span style="font-weight:700; opacity:0.7;">Итоговая стоимость:</span>
+            <span id="t-total" style="font-size:24px; font-weight:900; color:var(--accent-cyan);">0 ₽</span>
+        </div>
+
+        <button class="btn btn-main" style="width:100%; margin-top:25px;" onclick="createTask()">Оплатить и запустить</button>
     </div>
-    <div class="reward">+50 ₽</div>
   </div>
-  <div class="card task">
-    <div>
-      <div class="task-title">Google Maps</div>
-      <div class="task-sub">Написать отзыв</div>
+
+  <div id="m-topup" class="overlay" onclick="if(event.target==this)closeModal()">
+    <div class="modal">
+        <h2 style="margin:0;">Пополнение</h2>
+        <p style="color:var(--text-dim); font-size:14px; margin-bottom:20px;">Минимальная сумма: 300 ₽</p>
+        <input type="number" id="sum-input" placeholder="Введите сумму (от 300)">
+        
+        <div class="pay-opt" onclick="processPay('T-Bank')">
+            <div class="pay-icon" style="background:#ffdd00; color:#000;">Т</div>
+            <div style="flex:1;"><b>Т-Банк / СБП</b><br><small style="color:var(--text-dim);">Мгновенное зачисление</small></div>
+        </div>
+        <div class="pay-opt" onclick="processPay('Stars')">
+            <div class="pay-icon" style="background:#ffcc00; color:#000;">⭐</div>
+            <div style="flex:1;"><b>Telegram Stars</b><br><small style="color:var(--text-dim);">Через баланс ТГ</small></div>
+        </div>
+        <div class="pay-opt" onclick="processPay('Crypto')">
+            <div class="pay-icon" style="background:#229ed9; color:#fff;">₿</div>
+            <div style="flex:1;"><b>Криптовалюта</b><br><small style="color:var(--text-dim);">USDT / TON / BTC</small></div>
+        </div>
     </div>
-    <div class="reward">+70 ₽</div>
   </div>
-  <div class="card task">
-    <div>
-      <div class="task-title">Подписка Telegram</div>
-      <div class="task-sub">Подписаться на канал</div>
+
+  <div id="m-withdraw" class="overlay" onclick="if(event.target==this)closeModal()">
+    <div class="modal">
+        <h2>Вывод средств</h2>
+        <input type="text" placeholder="Карта или номер телефона">
+        <input type="number" placeholder="Сумма вывода" style="margin-top:10px;">
+        <button class="btn btn-secondary" style="width:100%; margin-top:20px;">Создать заявку</button>
     </div>
-    <div class="reward">+20 ₽</div>
   </div>
-</section>
-<!-- PROFILE -->
-<section id="profile" class="hidden">
-  <div class="card profile">
-    <img id="avatar" class="avatar">
-    <div>
-      <div id="username">@user</div>
-      <div class="task-sub">Участник ReviewCash</div>
-    </div>
-    <div class="icon" id="theme">🌓</div>
-  </div>
-  <div class="card">
-    <div class="task-sub">Баланс</div>
-    <div class="balance">0 ₽</div>
-  </div>
-  <div class="card">
-    <button class="btn-primary">Вывести</button><br><br>
-    <button class="btn-outline">Пополнить</button>
-  </div>
-</section>
-</main>
-<div class="fab">+</div>
-<nav>
-  <button id="tabTasks" class="active">Задания</button>
-  <button id="tabProfile">Профиль</button>
-</nav>
-<script>
-const tg = Telegram.WebApp;
-tg.expand();
-/* USER */
-const user = tg.initDataUnsafe?.user;
-if(user){
-  document.getElementById("username").innerText =
-    user.username ? "@"+user.username : user.first_name;
-  if(user.photo_url){
-    document.getElementById("avatar").src = user.photo_url;
-  }
-}
-/* TABS */
-const tabTasks = document.getElementById("tabTasks");
-const tabProfile = document.getElementById("tabProfile");
-const tasks = document.getElementById("tasks");
-const profile = document.getElementById("profile");
-const title = document.getElementById("title");
-tabTasks.onclick = () => {
-  tabTasks.classList.add("active");
-  tabProfile.classList.remove("active");
-  tasks.classList.remove("hidden");
-  profile.classList.add("hidden");
-  title.innerText = "Задания";
-};
-tabProfile.onclick = () => {
-  tabProfile.classList.add("active");
-  tabTasks.classList.remove("active");
-  profile.classList.remove("hidden");
-  tasks.classList.add("hidden");
-  title.innerText = "Профиль";
-};
-/* THEME */
-const themeBtn = document.getElementById("theme");
-themeBtn.onclick = () => {
-  document.body.classList.toggle("dark");
-  localStorage.theme = document.body.classList.contains("dark") ? "dark" : "light";
-};
-if (localStorage.theme === "dark") document.body.classList.add("dark");
-/* SUPPORT */
-document.getElementById("support").onclick = () => {
-  tg.openTelegramLink("https://t.me/your_support");
-};
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+
+    const ASSETS = {
+        ya: 'https://www.google.com/s2/favicons?sz=64&domain=yandex.ru',
+        gm: 'https://www.google.com/s2/favicons?sz=64&domain=google.com',
+        tg: 'https://cdn-icons-png.flaticon.com/512/2111/2111646.png'
+    };
+
+    let state = {
+        filter: 'all',
+        user: { rub: 2150, stars: 450 },
+        tasks: [
+            { id: 1, type: 'ya', name: 'Отзыв Яндекс Карты', price: 120, owner: 'other' },
+            { id: 2, type: 'gm', name: 'Отзыв Google Maps', price: 75, owner: 'other' },
+            { id: 3, type: 'tg', name: 'Подписка на канал', price: 15, owner: 'other' }
+        ]
+    };
+
+    function recalc() {
+        const p = document.getElementById('t-type').selectedOptions[0].dataset.p;
+        const q = document.getElementById('t-qty').value || 0;
+        const cur = document.getElementById('t-cur').value;
+        const total = p * q;
+        const el = document.getElementById('t-total');
+        
+        if(cur === 'star') {
+            const stars = Math.ceil(total / 1.5);
+            el.innerText = stars + ' ⭐';
+            el.style.color = 'var(--accent-gold)';
+        } else {
+            el.innerText = total + ' ₽';
+            el.style.color = 'var(--accent-cyan)';
+        }
+    }
+
+    function toggleTheme() {
+        document.body.classList.toggle('light-mode');
+        const isLight = document.body.classList.contains('light-mode');
+        tg.setHeaderColor(isLight ? '#f2f4f7' : '#05070a');
+    }
+
+    function showTab(t) {
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        document.getElementById('tab-'+t).classList.add('active');
+        document.getElementById('view-tasks').classList.toggle('hidden', t !== 'tasks');
+        document.getElementById('view-profile').classList.toggle('hidden', t !== 'profile');
+    }
+
+    function render() {
+        const box = document.getElementById('tasks-list'); 
+        box.innerHTML = '';
+        const list = state.tasks.filter(t => state.filter === 'all' ? t.owner === 'other' : t.owner === 'me');
+        
+        list.forEach(t => {
+            box.insertAdjacentHTML('beforeend', `
+                <div class="task-item">
+                    <div style="display:flex; align-items:center;">
+                        <div class="brand-box"><img src="${ASSETS[t.type]}"></div>
+                        <div style="margin-left:15px;">
+                            <div style="font-weight:700;">${t.name}</div>
+                            <div style="color:var(--accent-cyan); font-weight:800; font-size:14px;">${t.price} ₽</div>
+                        </div>
+                    </div>
+                    <button class="btn btn-action" onclick="handleTask(this, '${t.owner}', ${t.id})">
+                        ${t.owner === 'me' ? 'Удалить' : 'Взять'}
+                    </button>
+                </div>
+            `);
+        });
+        
+        document.getElementById('u-bal-rub').innerText = state.user.rub.toLocaleString() + ' ₽';
+        document.getElementById('u-bal-star').innerText = state.user.stars.toLocaleString() + ' ⭐';
+    }
+
+    function handleTask(btn, owner, id) {
+        if(owner === 'me') {
+            state.tasks = state.tasks.filter(t => t.id !== id);
+            render();
+        } else {
+            btn.innerText = 'В работе'; 
+            btn.classList.add('working');
+            tg.showAlert('Вы взяли задание в работу!');
+        }
+    }
+
+    function setFilter(f) {
+        state.filter = f;
+        document.getElementById('f-all').classList.toggle('active', f === 'all');
+        document.getElementById('f-my').classList.toggle('active', f === 'my');
+        render();
+    }
+
+    function processPay(m) {
+        const val = document.getElementById('sum-input').value;
+        if(val < 300) return tg.showAlert('Минимальная сумма пополнения — 300 ₽');
+        tg.showAlert(`Переход к оплате через ${m} на сумму ${val} ₽`);
+        closeModal();
+    }
+
+    function createTask() {
+        const type = document.getElementById('t-type').value;
+        state.tasks.push({ 
+            id: Date.now(), 
+            type: type, 
+            name: 'Мой заказ (' + type.toUpperCase() + ')', 
+            price: document.getElementById('t-type').selectedOptions[0].dataset.p, 
+            owner: 'me' 
+        });
+        closeModal(); render(); 
+        tg.showAlert('Задание успешно создано и оплачено!');
+    }
+
+    function openModal(id) { 
+        document.getElementById(id).classList.add('active'); 
+        if(id === 'm-create') recalc();
+    }
+    
+    function closeModal() { 
+        document.querySelectorAll('.overlay').forEach(o => o.classList.remove('active')); 
+    }
+
+    window.onload = () => {
+        const u = tg.initDataUnsafe?.user;
+        document.getElementById('u-name').innerText = u ? '@'+u.username : '@developer_mode';
+        document.getElementById('u-pic').src = u?.photo_url || `https://ui-avatars.com/api/?name=User&background=00eaff&color=000`;
+        render();
+    };
 </script>
 </body>
 </html>
-```
