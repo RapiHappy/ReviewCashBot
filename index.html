@@ -5,158 +5,22 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>ReviewCash Ultimate Pro</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://miniapps.ai/sdk/miniapps-ai-v1.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-
-  <style>
-    :root {
-      /* Темная тема (основная) */
-      --bg: #05070a;
-      --card-bg: #0e1218;
-      --text-main: #ffffff;
-      --text-dim: #94a3b8;
-      --glass: rgba(255, 255, 255, 0.04);
-      --glass-border: rgba(255, 255, 255, 0.1);
-      --accent-cyan: #00eaff;
-      --accent-gold: #ffcc00;
-      --accent-green: #00ff88;
-      --nav-bg: rgba(15, 20, 26, 0.95);
-      --shadow: rgba(0,0,0,0.5);
-    }
-
-    body.light-mode {
-      --bg: #f2f4f7;
-      --card-bg: #ffffff;
-      --text-main: #1a1e23;
-      --text-dim: #64748b;
-      --glass: rgba(0, 0, 0, 0.03);
-      --glass-border: rgba(0, 0, 0, 0.08);
-      --accent-cyan: #0070f3;
-      --accent-gold: #f5a623;
-      --nav-bg: rgba(255, 255, 255, 0.95);
-      --shadow: rgba(0,0,0,0.05);
-    }
-
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
-    body { 
-      margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; 
-      background: var(--bg); color: var(--text-main); min-height: 100vh;
-      transition: background 0.3s, color 0.3s;
-    }
-
-    .app-container { max-width: 500px; margin: 0 auto; padding: 20px 16px 150px; }
-    .hidden { display: none !important; }
-
-    /* --- КАРТОЧКИ --- */
-    .card {
-      background: var(--card-bg); border: 1px solid var(--glass-border);
-      border-radius: 30px; padding: 24px; margin-bottom: 20px;
-      box-shadow: 0 10px 30px var(--shadow);
-    }
-
-    /* --- ПРОФИЛЬ И БАЛАНС --- */
-    .profile-header { display: flex; align-items: center; gap: 20px; }
-    .avatar-ring {
-      width: 80px; height: 80px; border-radius: 50%; padding: 3px;
-      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-gold));
-      display: flex; align-items: center; justify-content: center;
-    }
-    .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 3px solid var(--bg); }
-    
-    .balance-stack { display: flex; flex-direction: column; gap: 2px; }
-    .bal-rub { font-size: 32px; font-weight: 800; color: var(--accent-cyan); letter-spacing: -1px; }
-    .bal-star { font-size: 18px; font-weight: 700; color: var(--accent-gold); display: flex; align-items: center; gap: 6px; }
-
-    /* --- КРУГЛАЯ КНОПКА + --- */
-    .fab-wrap { position: fixed; right: 24px; bottom: 125px; z-index: 1000; }
-    .fab-btn {
-      width: 72px; height: 72px; border-radius: 50%;
-      background: linear-gradient(135deg, #00eaff, #0088ff);
-      color: #000; display: flex; align-items: center; justify-content: center;
-      font-size: 42px; cursor: pointer;
-      box-shadow: 0 15px 35px rgba(0, 234, 255, 0.4);
-      transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-    .fab-btn:active { transform: scale(0.85); }
-
-    /* --- КНОПКИ --- */
-    .btn {
-      border: none; border-radius: 20px; padding: 16px; font-weight: 800; font-size: 14px;
-      cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
-    }
-    .btn-main { background: linear-gradient(135deg, var(--accent-cyan), #0088ff); color: #fff; }
-    .btn-secondary { background: var(--glass); color: var(--text-main); border: 1px solid var(--glass-border); }
-    
-    .btn-action {
-        background: rgba(0, 234, 255, 0.1); color: var(--accent-cyan);
-        border: 1px solid rgba(0, 234, 255, 0.2); padding: 12px 24px; 
-        border-radius: 14px; font-size: 13px; font-weight: 700;
-    }
-    .btn-action.working { background: var(--accent-green); color: #000; border: none; }
-
-    /* --- ЗАДАНИЯ --- */
-    .task-item {
-      background: var(--glass); border: 1px solid var(--glass-border);
-      border-radius: 28px; padding: 20px; margin-bottom: 12px;
-      display: flex; justify-content: space-between; align-items: center;
-    }
-    .brand-box { 
-      width: 54px; height: 54px; border-radius: 16px; background: #fff; 
-      display: flex; align-items: center; justify-content: center; padding: 8px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-    .brand-box img { width: 100%; height: 100%; object-fit: contain; }
-
-    /* --- НАВИГАЦИЯ --- */
-    .nav-bar {
-      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-      background: var(--nav-bg); backdrop-filter: blur(25px);
-      border: 1px solid var(--glass-border); padding: 8px; border-radius: 35px;
-      display: flex; gap: 5px; z-index: 1000;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-    }
-    .nav-item { padding: 14px 34px; border-radius: 26px; color: var(--text-dim); font-weight: 700; cursor: pointer; transition: 0.3s; }
-    .nav-item.active { background: var(--text-main); color: var(--bg); }
-
-    /* --- МОДАЛЬНЫЕ ОКНА --- */
-    .overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.92); backdrop-filter: blur(15px);
-      z-index: 2000; display: none; align-items: flex-end;
-    }
-    .overlay.active { display: flex; }
-    .modal {
-      width: 100%; background: var(--card-bg); border-radius: 45px 45px 0 0;
-      padding: 35px 24px 60px; color: var(--text-main); border-top: 1px solid var(--glass-border);
-    }
-    input, select {
-      width: 100%; background: var(--glass); border: 1px solid var(--glass-border);
-      padding: 18px; border-radius: 20px; color: var(--text-main); font-size: 16px; margin-top: 10px;
-    }
-
-    .total-badge {
-      margin-top: 20px; background: rgba(0, 234, 255, 0.05); padding: 22px;
-      border-radius: 28px; border: 1px dashed var(--glass-border);
-      display: flex; justify-content: space-between; align-items: center;
-    }
-
-    .menu-item {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 20px; border-radius: 22px; background: var(--glass);
-        margin-top: 10px; cursor: pointer; font-weight: 700; border: 1px solid var(--glass-border);
-    }
-
-    .pay-opt {
-      background: var(--glass); border: 1px solid var(--glass-border);
-      border-radius: 22px; padding: 18px; margin-top: 12px;
-      display: flex; align-items: center; gap: 15px; cursor: pointer;
-    }
-    .pay-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; }
-  </style>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
+  <!-- PRELOADER -->
+  <div id="loader" class="loader-overlay">
+    <div class="spinner"></div>
+    <div style="margin-top: 20px; font-weight: 700; color: var(--accent-cyan);">Загрузка профиля...</div>
+  </div>
+
   <div class="app-container">
     
-    <section id="view-tasks">
+    <!-- TASKS VIEW -->
+    <section id="view-tasks" class="anim-entry">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
         <h2 style="font-size: 34px; font-weight: 800; margin: 0;">Задания</h2>
         <div style="display: flex; background: var(--glass); padding: 4px; border-radius: 16px; border: 1px solid var(--glass-border);">
@@ -167,12 +31,13 @@
       <div id="tasks-list"></div>
     </section>
 
-    <section id="view-profile" class="hidden">
+    <!-- PROFILE VIEW -->
+    <section id="view-profile" class="hidden anim-entry">
       <div class="card">
         <div class="profile-header">
-          <div class="avatar-ring"><img class="avatar-img" id="u-pic" src=""></div>
+          <div class="avatar-ring"><img class="avatar-img" id="u-pic" src="" alt="Avatar"></div>
           <div class="balance-stack">
-            <div id="u-name" style="color:var(--text-dim); font-size: 14px; font-weight: 700;">@username</div>
+            <div id="u-name" style="color:var(--text-dim); font-size: 14px; font-weight: 700;">Loading...</div>
             <div id="u-bal-rub" class="bal-rub">0 ₽</div>
             <div id="u-bal-star" class="bal-star">0 ⭐</div>
           </div>
@@ -183,13 +48,21 @@
         </div>
       </div>
 
+      <!-- ADMIN BUTTON (HIDDEN BY DEFAULT) -->
+      <div id="admin-panel-card" class="card" style="display: none; padding: 15px; border: 1px dashed var(--accent-gold); background: rgba(255, 204, 0, 0.05);">
+        <div class="menu-item" onclick="openAdminPanel()" style="margin:0; background:transparent; border:none; padding:5px;">
+            <span style="color: var(--accent-gold);">🛡️ Панель администратора</span>
+            <span id="admin-badge" style="background:var(--accent-gold); color:#000; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:800; opacity:0;">0</span>
+        </div>
+      </div>
+
       <div class="card" style="padding: 15px;">
         <div class="menu-item" onclick="toggleTheme()">
             <span>🌗 Сменить тему</span>
             <small style="opacity: 0.6;">Light / Dark</small>
         </div>
         <div class="menu-item" onclick="tg.openTelegramLink('https://t.me/LolikMoney')">
-            <span style="color: var(--accent-cyan);">💬 Поддержка @LolikMoney</span>
+            <span style="color: var(--accent-cyan);">💬 Поддержка</span>
             <span style="opacity: 0.3;">→</span>
         </div>
       </div>
@@ -197,35 +70,52 @@
 
   </div>
 
+  <!-- NAVIGATION -->
   <nav class="nav-bar">
     <div class="nav-item active" id="tab-tasks" onclick="showTab('tasks')">Задания</div>
     <div class="nav-item" id="tab-profile" onclick="showTab('profile')">Профиль</div>
   </nav>
 
+  <!-- FAB -->
   <div class="fab-wrap" onclick="openModal('m-create')">
     <div class="fab-btn">+</div>
   </div>
 
-  <div id="m-create" class="overlay" onclick="if(event.target==this)closeModal()">
+  <!-- CREATE MODAL -->
+  <div id="m-create" class="overlay">
     <div class="modal">
         <h2 style="margin:0 0 5px;">Новое задание</h2>
-        <p style="color:var(--text-dim); font-size:14px; margin-bottom:20px;">Настройте параметры продвижения</p>
+        <p style="color:var(--text-dim); font-size:14px; margin-bottom:15px;">Настройте параметры продвижения</p>
         
-        <label style="font-size:11px; font-weight:800; opacity:0.5; margin-left:12px; text-transform:uppercase;">Тип площадки</label>
+        <label class="input-label">Тип площадки</label>
         <select id="t-type" onchange="recalc()">
             <option value="ya" data-p="120">📍 Яндекс Карты (120₽ / шт)</option>
             <option value="gm" data-p="75">🌍 Google Maps (75₽ / шт)</option>
             <option value="tg" data-p="15">✈️ Telegram (15₽ / шт)</option>
         </select>
 
+        <div id="tg-options" class="hidden" style="margin-top: 15px; background: rgba(0,234,255,0.05); padding: 12px; border-radius: 16px; border: 1px dashed var(--glass-border);">
+            <div style="font-size:12px; color:var(--text-dim); line-height:1.4;">
+                <b>⚡ Автоматическая проверка:</b><br>
+                Обязательно добавьте бота <span style="color:var(--accent-cyan);">@ReviewCashBot</span> в администраторы канала, иначе он не сможет проверять подписки.
+            </div>
+        </div>
+
+        <label class="input-label">Ссылка на объект (Карты/Канал)</label>
+        <input type="text" id="t-target" placeholder="https://..." style="margin-top:5px;">
+        <div id="t-target-status" class="input-status"></div>
+
+        <label class="input-label">Текст отзыва / Комментарий</label>
+        <textarea id="t-text" rows="3" placeholder="Например: Отличное место, вкусный кофе..." style="margin-top:5px;"></textarea>
+
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:15px;">
             <div>
-                <label style="font-size:11px; font-weight:800; opacity:0.5; margin-left:12px; text-transform:uppercase;">Количество</label>
-                <input type="number" id="t-qty" value="10" oninput="recalc()">
+                <label class="input-label">Количество</label>
+                <input type="number" id="t-qty" value="10" min="1" oninput="recalc()" style="margin-top:5px;">
             </div>
             <div>
-                <label style="font-size:11px; font-weight:800; opacity:0.5; margin-left:12px; text-transform:uppercase;">Валюта</label>
-                <select id="t-cur" onchange="recalc()">
+                <label class="input-label">Валюта оплаты</label>
+                <select id="t-cur" onchange="recalc()" style="margin-top:5px;">
                     <option value="rub">RUB (₽)</option>
                     <option value="star">Stars (⭐)</option>
                 </select>
@@ -233,7 +123,10 @@
         </div>
 
         <div class="total-badge">
-            <span style="font-weight:700; opacity:0.7;">Итоговая стоимость:</span>
+            <div style="display:flex; flex-direction:column; gap:2px;">
+                <span style="font-weight:700; opacity:0.7;">Итого с комиссией:</span>
+                <span style="font-size:11px; color:var(--text-dim);">Комиссия сервиса: 15%</span>
+            </div>
             <span id="t-total" style="font-size:24px; font-weight:900; color:var(--accent-cyan);">0 ₽</span>
         </div>
 
@@ -241,165 +134,143 @@
     </div>
   </div>
 
-  <div id="m-topup" class="overlay" onclick="if(event.target==this)closeModal()">
+  <!-- TASK DETAILS MODAL -->
+  <div id="m-task-details" class="overlay">
+    <div class="modal">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+                <h2 id="td-title" style="margin:0;">Задание</h2>
+                <div id="td-reward" style="color:var(--accent-green); font-weight:800; font-size:18px; margin-top:5px;">+0 ₽</div>
+            </div>
+            <div id="td-icon" class="brand-box" style="width:60px; height:60px;"></div>
+        </div>
+        
+        <div class="detail-block">
+            <label class="input-label">Ссылка для перехода:</label>
+            <div class="copy-box" onclick="copyLink()" style="margin-top:5px;">
+                <span id="td-link" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:85%; font-size:13px; color:var(--accent-cyan);">https://...</span>
+                <span>🔗</span>
+            </div>
+            <a id="td-link-btn" href="#" target="_blank" class="btn btn-secondary" style="width:100%; margin-top:10px; padding:10px; font-size:12px;">Перейти по ссылке</a>
+        </div>
+
+        <div class="detail-block">
+            <label class="input-label">Что нужно сделать / Написать:</label>
+            <div id="td-text" style="background:var(--glass); padding:15px; border-radius:15px; margin-top:5px; font-size:14px; line-height:1.4;">
+                Текст задания...
+            </div>
+            <button class="btn btn-secondary" style="width:100%; margin-top:10px; padding:10px; font-size:12px;" onclick="copyText()">Копировать текст</button>
+        </div>
+
+        <!-- PROOF AREA -->
+        <div id="td-proof-area" style="margin-top: 25px; border-top: 1px solid var(--glass-border); padding-top: 20px;">
+            
+            <!-- For Reviews (Manual) -->
+            <div id="proof-manual" class="hidden">
+                <h3 style="margin:0 0 10px; font-size: 16px;">📸 Отчет о выполнении</h3>
+                
+                <label class="input-label">Ваш Никнейм / Имя</label>
+                <input type="text" id="p-username" placeholder="Пример: Alex99">
+
+                <label class="input-label">Скриншот доказательства</label>
+                <div class="file-upload-btn" onclick="document.getElementById('p-file').click()">
+                    <span id="p-filename">📷 Прикрепить скриншот</span>
+                </div>
+                <input type="file" id="p-file" accept="image/*" style="display:none" onchange="updateFileName(this)">
+            </div>
+
+            <!-- For Auto Telegram -->
+            <div id="proof-auto" class="hidden">
+                <div style="background: rgba(0, 234, 255, 0.1); padding: 15px; border-radius: 15px; display:flex; gap:10px; align-items:center;">
+                    <div style="font-size:24px;">🤖</div>
+                    <div style="font-size:13px; line-height:1.3;">
+                        <b>Автоматическая проверка</b><br>
+                        Бот проверит вашу подписку на канал. Не отписывайтесь 24 часа.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button id="td-action-btn" class="btn btn-main" style="width:100%; margin-top:25px;" onclick="">Действие</button>
+    </div>
+  </div>
+
+  <!-- ADMIN / MODERATION MODAL -->
+  <div id="m-admin" class="overlay">
+    <div class="modal">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2 style="margin:0;">🛡️ Модерация</h2>
+            <div style="font-size:13px; opacity:0.5;">Admin Panel</div>
+        </div>
+        <p style="color:var(--text-dim); font-size:14px; margin-bottom:20px;">Проверяйте отчеты исполнителей</p>
+        
+        <div id="admin-list" style="display:flex; flex-direction:column; gap:15px;">
+            <!-- Rendered via JS -->
+        </div>
+    </div>
+  </div>
+
+  <!-- TOPUP MODAL -->
+  <div id="m-topup" class="overlay">
     <div class="modal">
         <h2 style="margin:0;">Пополнение</h2>
         <p style="color:var(--text-dim); font-size:14px; margin-bottom:20px;">Минимальная сумма: 300 ₽</p>
         <input type="number" id="sum-input" placeholder="Введите сумму (от 300)">
         
-        <div class="pay-opt" onclick="processPay('T-Bank')">
-            <div class="pay-icon" style="background:#ffdd00; color:#000;">Т</div>
-            <div style="flex:1;"><b>Т-Банк / СБП</b><br><small style="color:var(--text-dim);">Мгновенное зачисление</small></div>
-        </div>
-        <div class="pay-opt" onclick="processPay('Stars')">
-            <div class="pay-icon" style="background:#ffcc00; color:#000;">⭐</div>
-            <div style="flex:1;"><b>Telegram Stars</b><br><small style="color:var(--text-dim);">Через баланс ТГ</small></div>
-        </div>
-        <div class="pay-opt" onclick="processPay('Crypto')">
+        <div class="pay-opt" onclick="processPay('pay_crypto')">
             <div class="pay-icon" style="background:#229ed9; color:#fff;">₿</div>
             <div style="flex:1;"><b>Криптовалюта</b><br><small style="color:var(--text-dim);">USDT / TON / BTC</small></div>
         </div>
+        <div class="pay-opt" onclick="processPay('pay_stars')">
+            <div class="pay-icon" style="background:#ffcc00; color:#000;">⭐</div>
+            <div style="flex:1;"><b>Telegram Stars</b><br><small style="color:var(--text-dim);">Через баланс ТГ</small></div>
+        </div>
+        <div class="pay-opt" onclick="openTBankPay()">
+            <div class="pay-icon" style="background:#ffdd2d; color:#000;">T</div>
+            <div style="flex:1;"><b>Т-Банк</b><br><small style="color:var(--text-dim);">Карта РФ (P2P)</small></div>
+        </div>
     </div>
   </div>
 
-  <div id="m-withdraw" class="overlay" onclick="if(event.target==this)closeModal()">
+  <!-- TBANK MODAL -->
+  <div id="m-pay-tbank" class="overlay">
+    <div class="modal">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2 style="margin:0;">Оплата Т-Банк</h2>
+            <div style="opacity:0.5; font-size:20px;" onclick="closeModal()">✕</div>
+        </div>
+        
+        <div style="background:var(--glass); padding:15px; border-radius:15px; margin: 15px 0; border:1px solid var(--glass-border); text-align:center;">
+             <p style="margin:0 0 5px; font-size:12px; opacity:0.7;">Сумма к оплате</p>
+             <div id="tb-amount-display" style="font-size:28px; font-weight:800; color:var(--accent-cyan);">0 ₽</div>
+        </div>
+
+        <p style="font-size:13px; color:var(--text-dim); margin-bottom:8px;">1. Скопируйте код для комментария:</p>
+        <div class="copy-box" onclick="copyCode()">
+            <span id="tb-code" style="font-family:monospace; font-weight:700; font-size:18px; letter-spacing:1px;">CODE</span>
+            <span style="font-size:14px; opacity:0.7;">📋</span>
+        </div>
+
+        <p style="font-size:13px; color:var(--text-dim); margin: 15px 0 8px;">2. Переведите сумму по ссылке, указав код в комментарии:</p>
+        <a href="https://www.tinkoff.ru/rm/r_TfPtbPbddX.PiDdKULdka/kkRwB91205" target="_blank" class="btn btn-secondary" style="width:100%; text-decoration:none; margin-bottom:20px; justify-content: center;">🔗 Открыть Т-Банк</a>
+
+        <p style="font-size:13px; color:var(--text-dim); margin-bottom:5px;">3. Ваше имя (отправителя):</p>
+        <input type="text" id="tb-sender" placeholder="Например: Иван И." style="margin-top:0;">
+
+        <button class="btn btn-main" style="width:100%; margin-top:20px;" onclick="confirmTBank()">Я оплатил</button>
+    </div>
+  </div>
+
+  <!-- WITHDRAW MODAL -->
+  <div id="m-withdraw" class="overlay">
     <div class="modal">
         <h2>Вывод средств</h2>
-        <input type="text" placeholder="Карта или номер телефона">
-        <input type="number" placeholder="Сумма вывода" style="margin-top:10px;">
-        <button class="btn btn-secondary" style="width:100%; margin-top:20px;">Создать заявку</button>
+        <input type="text" id="w-details" placeholder="Карта или номер телефона">
+        <input type="number" id="w-amount" placeholder="Сумма вывода" style="margin-top:10px;">
+        <button class="btn btn-secondary" style="width:100%; margin-top:20px;" onclick="requestWithdraw()">Создать заявку</button>
     </div>
   </div>
 
-  <script>
-    const tg = window.Telegram.WebApp;
-    tg.expand();
-
-    const ASSETS = {
-        ya: 'https://www.google.com/s2/favicons?sz=64&domain=yandex.ru',
-        gm: 'https://www.google.com/s2/favicons?sz=64&domain=google.com',
-        tg: 'https://cdn-icons-png.flaticon.com/512/2111/2111646.png'
-    };
-
-    let state = {
-        filter: 'all',
-        user: { rub: 2150, stars: 450 },
-        tasks: [
-            { id: 1, type: 'ya', name: 'Отзыв Яндекс Карты', price: 120, owner: 'other' },
-            { id: 2, type: 'gm', name: 'Отзыв Google Maps', price: 75, owner: 'other' },
-            { id: 3, type: 'tg', name: 'Подписка на канал', price: 15, owner: 'other' }
-        ]
-    };
-
-    function recalc() {
-        const p = document.getElementById('t-type').selectedOptions[0].dataset.p;
-        const q = document.getElementById('t-qty').value || 0;
-        const cur = document.getElementById('t-cur').value;
-        const total = p * q;
-        const el = document.getElementById('t-total');
-        
-        if(cur === 'star') {
-            const stars = Math.ceil(total / 1.5);
-            el.innerText = stars + ' ⭐';
-            el.style.color = 'var(--accent-gold)';
-        } else {
-            el.innerText = total + ' ₽';
-            el.style.color = 'var(--accent-cyan)';
-        }
-    }
-
-    function toggleTheme() {
-        document.body.classList.toggle('light-mode');
-        const isLight = document.body.classList.contains('light-mode');
-        tg.setHeaderColor(isLight ? '#f2f4f7' : '#05070a');
-    }
-
-    function showTab(t) {
-        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-        document.getElementById('tab-'+t).classList.add('active');
-        document.getElementById('view-tasks').classList.toggle('hidden', t !== 'tasks');
-        document.getElementById('view-profile').classList.toggle('hidden', t !== 'profile');
-    }
-
-    function render() {
-        const box = document.getElementById('tasks-list'); 
-        box.innerHTML = '';
-        const list = state.tasks.filter(t => state.filter === 'all' ? t.owner === 'other' : t.owner === 'me');
-        
-        list.forEach(t => {
-            box.insertAdjacentHTML('beforeend', `
-                <div class="task-item">
-                    <div style="display:flex; align-items:center;">
-                        <div class="brand-box"><img src="${ASSETS[t.type]}"></div>
-                        <div style="margin-left:15px;">
-                            <div style="font-weight:700;">${t.name}</div>
-                            <div style="color:var(--accent-cyan); font-weight:800; font-size:14px;">${t.price} ₽</div>
-                        </div>
-                    </div>
-                    <button class="btn btn-action" onclick="handleTask(this, '${t.owner}', ${t.id})">
-                        ${t.owner === 'me' ? 'Удалить' : 'Взять'}
-                    </button>
-                </div>
-            `);
-        });
-        
-        document.getElementById('u-bal-rub').innerText = state.user.rub.toLocaleString() + ' ₽';
-        document.getElementById('u-bal-star').innerText = state.user.stars.toLocaleString() + ' ⭐';
-    }
-
-    function handleTask(btn, owner, id) {
-        if(owner === 'me') {
-            state.tasks = state.tasks.filter(t => t.id !== id);
-            render();
-        } else {
-            btn.innerText = 'В работе'; 
-            btn.classList.add('working');
-            tg.showAlert('Вы взяли задание в работу!');
-        }
-    }
-
-    function setFilter(f) {
-        state.filter = f;
-        document.getElementById('f-all').classList.toggle('active', f === 'all');
-        document.getElementById('f-my').classList.toggle('active', f === 'my');
-        render();
-    }
-
-    function processPay(m) {
-        const val = document.getElementById('sum-input').value;
-        if(val < 300) return tg.showAlert('Минимальная сумма пополнения — 300 ₽');
-        tg.showAlert(`Переход к оплате через ${m} на сумму ${val} ₽`);
-        closeModal();
-    }
-
-    function createTask() {
-        const type = document.getElementById('t-type').value;
-        state.tasks.push({ 
-            id: Date.now(), 
-            type: type, 
-            name: 'Мой заказ (' + type.toUpperCase() + ')', 
-            price: document.getElementById('t-type').selectedOptions[0].dataset.p, 
-            owner: 'me' 
-        });
-        closeModal(); render(); 
-        tg.showAlert('Задание успешно создано и оплачено!');
-    }
-
-    function openModal(id) { 
-        document.getElementById(id).classList.add('active'); 
-        if(id === 'm-create') recalc();
-    }
-    
-    function closeModal() { 
-        document.querySelectorAll('.overlay').forEach(o => o.classList.remove('active')); 
-    }
-
-    window.onload = () => {
-        const u = tg.initDataUnsafe?.user;
-        document.getElementById('u-name').innerText = u ? '@'+u.username : '@developer_mode';
-        document.getElementById('u-pic').src = u?.photo_url || `https://ui-avatars.com/api/?name=User&background=00eaff&color=000`;
-        render();
-    };
-</script>
+  <script src="main.js"></script>
 </body>
 </html>
