@@ -12,22 +12,24 @@ const MockTelegram = {
         },
         initDataUnsafe: {
             user: {
-                id: 123456, // Mock ID used for admin check in demo
+                id: 123456, // MOCK USER (NOT ADMIN)
                 username: 'miniapp_user',
-                first_name: 'Alex',
-                photo_url: 'https://ui-avatars.com/api/?name=Alex&background=00eaff&color=000'
+                first_name: 'Test User',
+                photo_url: ''
             }
         }
     }
 };
 
 // Use window.Telegram.WebApp if available, otherwise mock
-const tg = window.Telegram?.WebApp?.initDataUnsafe?.user ? window.Telegram.WebApp : MockTelegram.WebApp;
+// Robust check to ensure initDataUnsafe exists
+const tg = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) 
+    ? window.Telegram.WebApp 
+    : MockTelegram.WebApp;
 
 // --- CONFIGURATION ---
-// Add the Telegram User IDs of administrators here.
-// In the preview, the mock user ID is 123456.
-const ADMIN_IDS = [123456, 987654321]; 
+// YOUR ADMIN ID: 6482440657
+const ADMIN_IDS = [6482440657]; 
 
 const ASSETS = {
     ya: 'https://www.google.com/s2/favicons?sz=64&domain=yandex.ru',
@@ -48,32 +50,20 @@ let selectedProofFile = null;
 
 // Initialization
 document.addEventListener('DOMContentLoaded', async () => {
-    tg.expand();
+    try {
+        tg.expand();
+    } catch(e) { console.log('Expand error', e); }
     
-    // 1. Load Data
+    // --- 1. SETUP UI IMMEDIATELY (Don't wait for data) ---
+    setupProfileUI();
+
+    // --- 2. LOAD DATA ---
     await loadData();
     
-    // 2. Setup UI
-    const u = tg.initDataUnsafe?.user;
-    const nameEl = document.getElementById('u-name');
-    const picEl = document.getElementById('u-pic');
-    
-    if (nameEl && u) {
-        nameEl.innerText = u.username ? '@' + u.username : (u.first_name || 'User');
-    }
-    
-    if (picEl) {
-        picEl.src = u?.photo_url || `https://ui-avatars.com/api/?name=${u?.first_name || 'U'}&background=00eaff&color=000`;
-    }
+    // --- 3. CHECK ADMIN RIGHTS ---
+    checkAdmin();
 
-    // 3. Check Admin Rights
-    // Show admin panel only if user ID matches list
-    if (u && ADMIN_IDS.includes(u.id)) {
-        const adminPanel = document.getElementById('admin-panel-card');
-        if (adminPanel) adminPanel.style.display = 'block';
-    }
-
-    // 4. Render
+    // --- 4. RENDER & FINALIZE ---
     render();
     updateAdminBadge();
     
@@ -131,6 +121,55 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 });
+
+function setupProfileUI() {
+    const u = tg.initDataUnsafe?.user;
+    const nameEl = document.getElementById('u-name');
+    const picEl = document.getElementById('u-pic');
+    
+    if (nameEl) {
+        if (u) {
+            // Prefer username, fallback to First Name + Last Name
+            const displayName = u.username 
+                ? '@' + u.username 
+                : `${u.first_name || ''} ${u.last_name || ''}`.trim() || 'Пользователь';
+            nameEl.innerText = displayName;
+        } else {
+            nameEl.innerText = 'Гость';
+        }
+    }
+    
+    if (picEl) {
+        if (u && u.photo_url) {
+            picEl.src = u.photo_url;
+        } else {
+            // Generate colorful avatar if no photo provided
+            const seed = u ? (u.first_name || 'U') : 'U';
+            picEl.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=128&bold=true`;
+        }
+        
+        // Error handler: if TG photo URL is broken/expired, fallback to generated
+        picEl.onerror = function() {
+            const seed = u ? (u.first_name || 'U') : 'U';
+            this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=128&bold=true`;
+        };
+    }
+}
+
+function checkAdmin() {
+    const u = tg.initDataUnsafe?.user;
+    const adminPanel = document.getElementById('admin-panel-card');
+    
+    // Only show if user exists AND ID is in the list
+    if (u && u.id && ADMIN_IDS.includes(Number(u.id))) {
+        if (adminPanel) {
+            adminPanel.style.display = 'block';
+            console.log('Admin panel enabled for ID:', u.id);
+        }
+    } else {
+        if (adminPanel) adminPanel.style.display = 'none';
+    }
+}
 
 async function loadData() {
     try {
@@ -428,6 +467,7 @@ window.adminDecision = async function(itemId, approved) {
 
 function updateAdminBadge() {
     const badge = document.getElementById('admin-badge');
+    if(!badge) return;
     const count = state.moderation.length;
     badge.innerText = count;
     badge.style.opacity = count > 0 ? '1' : '0';
