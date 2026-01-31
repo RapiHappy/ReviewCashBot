@@ -12,20 +12,28 @@ const MockTelegram = {
         },
         initDataUnsafe: {
             user: {
-                id: 123456, // MOCK USER (NOT ADMIN)
+                id: 123456, // MOCK USER
                 username: 'miniapp_user',
-                first_name: 'Test User',
+                first_name: 'Test',
+                last_name: 'User',
                 photo_url: ''
             }
         }
     }
 };
 
-// Use window.Telegram.WebApp if available, otherwise mock
-// Robust check to ensure initDataUnsafe exists
-const tg = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) 
-    ? window.Telegram.WebApp 
-    : MockTelegram.WebApp;
+// HELPER: Get User Data Safely
+function getTgUser() {
+    // 1. Try real Telegram WebApp
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+        return window.Telegram.WebApp.initDataUnsafe.user;
+    }
+    // 2. Fallback to Mock if in dev/browser environment
+    return MockTelegram.WebApp.initDataUnsafe.user;
+}
+
+// Global TG reference (for methods)
+const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : MockTelegram.WebApp;
 
 // --- CONFIGURATION ---
 // YOUR ADMIN ID: 6482440657
@@ -51,14 +59,14 @@ let selectedProofFile = null;
 // Initialization
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        tg.expand();
+        if(tg.expand) tg.expand();
     } catch(e) { console.log('Expand error', e); }
     
-    // --- 1. SETUP UI IMMEDIATELY (Don't wait for data) ---
+    // --- 1. SETUP UI IMMEDIATELY ---
     setupProfileUI();
 
     // --- 2. LOAD DATA ---
-    await loadData();
+    try { await loadData(); } catch(e) { console.error('Data load error', e); }
     
     // --- 3. CHECK ADMIN RIGHTS ---
     checkAdmin();
@@ -106,7 +114,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             statusEl.innerHTML = '<span class="spin-icon">⏳</span> Проверка ссылки...';
             
             linkCheckTimer = setTimeout(() => {
-                // Slightly loose regex to allow "google.com" without https
                 const isValid = /^https?:\/\/.+\..+/.test(val) || /^t\.me\/.+/.test(val) || /^[\w-]+\.+[\w-]+/.test(val);
                 
                 statusEl.className = 'input-status visible ' + (isValid ? 'valid' : 'invalid');
@@ -123,41 +130,58 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function setupProfileUI() {
-    const u = tg.initDataUnsafe?.user;
-    const nameEl = document.getElementById('u-name');
-    const picEl = document.getElementById('u-pic');
-    
-    if (nameEl) {
-        if (u) {
-            // Prefer username, fallback to First Name + Last Name
-            const displayName = u.username 
-                ? '@' + u.username 
-                : `${u.first_name || ''} ${u.last_name || ''}`.trim() || 'Пользователь';
-            nameEl.innerText = displayName;
-        } else {
-            nameEl.innerText = 'Гость';
-        }
-    }
-    
-    if (picEl) {
-        if (u && u.photo_url) {
-            picEl.src = u.photo_url;
-        } else {
-            // Generate colorful avatar if no photo provided
-            const seed = u ? (u.first_name || 'U') : 'U';
-            picEl.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=128&bold=true`;
-        }
+    try {
+        const u = getTgUser();
         
-        // Error handler: if TG photo URL is broken/expired, fallback to generated
-        picEl.onerror = function() {
-            const seed = u ? (u.first_name || 'U') : 'U';
-            this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=128&bold=true`;
-        };
+        // Define display name
+        let displayName = 'Гость';
+        let seed = 'G';
+        
+        if (u) {
+            displayName = u.username 
+                ? '@' + u.username 
+                : `${u.first_name || ''} ${u.last_name || ''}`.trim();
+            if (!displayName) displayName = 'Пользователь';
+            seed = u.first_name || 'U';
+        }
+
+        // Define Photo URL
+        let photoSrc = (u && u.photo_url) ? u.photo_url : null;
+        if (!photoSrc) {
+            photoSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=128&bold=true`;
+        }
+
+        // UPDATE PROFILE TAB
+        const nameEl = document.getElementById('u-name');
+        const picEl = document.getElementById('u-pic');
+        if (nameEl) nameEl.innerText = displayName;
+        if (picEl) {
+            picEl.src = photoSrc;
+            picEl.onerror = function() {
+                this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=128&bold=true`;
+            };
+        }
+
+        // UPDATE HEADER MINI PROFILE
+        const headerName = document.getElementById('header-name');
+        const headerPic = document.getElementById('header-avatar');
+        if (headerName) headerName.innerText = displayName;
+        if (headerPic) {
+            headerPic.src = photoSrc;
+            headerPic.onerror = function() {
+                this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=64&bold=true`;
+            };
+        }
+
+    } catch(e) {
+        console.error('Profile Setup Error:', e);
+        // Fallback in case of crash
+        document.getElementById('u-name').innerText = 'Ошибка';
     }
 }
 
 function checkAdmin() {
-    const u = tg.initDataUnsafe?.user;
+    const u = getTgUser();
     const adminPanel = document.getElementById('admin-panel-card');
     
     // Only show if user exists AND ID is in the list
@@ -368,9 +392,6 @@ window.submitReviewProof = async function(id) {
         
         state.moderation.push(proofItem);
         
-        // Remove task from available list? In a real app yes, or just mark "pending". 
-        // Here we keep it simple - just notify user.
-        
         await saveData();
         updateAdminBadge();
         closeModal();
@@ -384,13 +405,11 @@ window.submitReviewProof = async function(id) {
     }
 };
 
-// If auto=true, pay instantly. If manual, it went to queue separately.
 function completeTaskLogic(id, msg, isAuto) {
     const task = state.tasks.find(t => t.id === id);
     if (task) {
         const reward = parseInt(task.price);
         state.user.rub += reward;
-        // In real app, we would mark this task as 'done' by this user
         saveData();
         render();
         closeModal();
@@ -448,18 +467,16 @@ window.adminDecision = async function(itemId, approved) {
     if(!item) return;
 
     if(approved) {
-        // Pay the worker (Simulated by adding to CURRENT user balance for demo loop)
         state.user.rub += parseInt(item.price);
         tg.showAlert(`✅ Отчет принят. Исполнителю начислено +${item.price} ₽`);
     } else {
         tg.showAlert('❌ Отчет отклонен.');
     }
 
-    // Remove from queue
     state.moderation = state.moderation.filter(i => i.id !== itemId);
     await saveData();
-    render(); // Update balance display
-    renderAdmin(); // Refresh list
+    render(); 
+    renderAdmin(); 
     updateAdminBadge();
     
     if(state.moderation.length === 0) closeModal();
@@ -482,7 +499,6 @@ window.recalc = function() {
     const cur = document.getElementById('t-cur').value;
     const typeVal = typeSelect.value;
     
-    // Toggle TG Options visibility
     const tgOpts = document.getElementById('tg-options');
     if(typeVal === 'tg') {
         tgOpts.classList.remove('hidden');
@@ -518,7 +534,7 @@ window.copyText = function() {
 window.toggleTheme = function() {
     document.body.classList.toggle('light-mode');
     const isLight = document.body.classList.contains('light-mode');
-    tg.setHeaderColor(isLight ? '#f2f4f7' : '#05070a');
+    if(tg.setHeaderColor) tg.setHeaderColor(isLight ? '#f2f4f7' : '#05070a');
 };
 
 window.showTab = function(t) {
@@ -589,7 +605,7 @@ window.openTBankPay = function() {
     tbankAmount = val;
     document.getElementById('tb-amount-display').innerText = val + ' ₽';
     
-    const uId = tg.initDataUnsafe?.user?.id || 'TEST';
+    const uId = getTgUser()?.id || 'TEST';
     const rand = Math.floor(1000 + Math.random() * 9000); 
     const code = `PAY-${uId}-${rand}`;
     document.getElementById('tb-code').innerText = code;
@@ -632,7 +648,6 @@ window.requestWithdraw = function() {
 window.openModal = function(id) { 
     document.getElementById(id).classList.add('active'); 
     if(id === 'm-create') {
-        // Reset
         document.getElementById('t-target').value = '';
         document.getElementById('t-text').value = '';
         document.getElementById('t-target-status').className = 'input-status';
@@ -645,4 +660,3 @@ window.openModal = function(id) {
 window.closeModal = function() { 
     document.querySelectorAll('.overlay').forEach(o => o.classList.remove('active')); 
 };
-
