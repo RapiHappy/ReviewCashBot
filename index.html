@@ -38,7 +38,7 @@
     
     <!-- TASKS VIEW -->
     <section id="view-tasks" class="anim-entry">
-      <!-- NEW HEADER WITH MINI PROFILE -->
+      <!-- HEADER -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
         <div>
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px;" onclick="showTab('profile')">
@@ -56,49 +56,124 @@
       <div id="tasks-list"></div>
     </section>
 
+    <!-- FRIENDS / REFERRAL VIEW -->
+    <section id="view-friends" class="hidden anim-entry">
+      <h2 style="font-size: 28px; font-weight: 800; margin-bottom: 25px;">Друзья</h2>
+      
+      <div class="card" style="text-align: center;">
+        <div style="font-size: 48px; margin-bottom: 10px;">🎁</div>
+        <h3 style="margin: 0 0 10px;">Приглашай и зарабатывай</h3>
+        <p style="color:var(--text-dim); font-size:14px; margin-bottom:20px;">Получай <b>10%</b> от дохода друзей и <b>5%</b> от их расходов на рекламу.</p>
+        
+        <div class="copy-box" onclick="copyInviteLink()" style="margin-bottom: 15px;">
+             <span id="invite-link" style="font-size:13px; color:var(--accent-cyan); overflow:hidden; text-overflow:ellipsis;">t.me/ReviewCashBot?start=...</span>
+             <span>🔗</span>
+        </div>
+        <button class="btn btn-main" style="width:100%;" onclick="shareInvite()">Пригласить друга</button>
+      </div>
+
+      <div style="display: flex; gap: 15px; margin-bottom: 25px;">
+         <div class="card" style="flex:1; margin:0; padding:15px; text-align:center;">
+            <div style="font-size:24px; font-weight:800; color:var(--accent-green);" id="ref-count">0</div>
+            <div style="font-size:12px; color:var(--text-dim);">Друзей</div>
+         </div>
+         <div class="card" style="flex:1; margin:0; padding:15px; text-align:center;">
+            <div style="font-size:24px; font-weight:800; color:var(--accent-gold);" id="ref-earn">0 ₽</div>
+            <div style="font-size:12px; color:var(--text-dim);">Заработано</div>
+         </div>
+      </div>
+
+      <h3 style="margin-bottom: 15px;">🏆 Топ лидеров</h3>
+      <div id="leaderboard-list">
+         <!-- Populated by JS -->
+      </div>
+    </section>
+
     <!-- PROFILE VIEW -->
     <section id="view-profile" class="hidden anim-entry">
       <div class="card">
         <div class="profile-header">
-          <div class="avatar-ring"><img class="avatar-img" id="u-pic" src="" alt="Avatar"></div>
+          <div class="avatar-ring">
+             <img class="avatar-img" id="u-pic" src="" alt="Avatar">
+             <div class="level-badge" id="u-lvl-badge">LVL 1</div>
+          </div>
           <div class="balance-stack">
             <div id="u-name" style="color:var(--text-dim); font-size: 14px; font-weight: 700;">...</div>
             <div id="u-bal-rub" class="bal-rub">0 ₽</div>
             <div id="u-bal-star" class="bal-star">0 ⭐</div>
           </div>
         </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:28px;">
+        
+        <!-- XP Bar -->
+        <div class="xp-track">
+           <div class="xp-fill" id="u-xp-fill"></div>
+        </div>
+        <div class="xp-text">
+           <span id="u-xp-cur">0 XP</span>
+           <span id="u-xp-next">100 XP</span>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:20px;">
             <button class="btn btn-main" onclick="openModal('m-topup')">Пополнить</button>
             <button class="btn btn-secondary" onclick="openModal('m-withdraw')">Вывести</button>
         </div>
       </div>
 
-      <!-- ADMIN BUTTON (HIDDEN BY DEFAULT) -->
+      <!-- NEW HISTORY LINK -->
+      <div class="card" style="padding: 0; overflow: hidden;">
+         <div class="menu-item" onclick="showHistory()" style="margin:0; border:none; background:transparent;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:20px; background:rgba(0,234,255,0.1); width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:10px;">📜</span>
+                <span>История операций</span>
+            </div>
+            <span style="opacity: 0.3;">→</span>
+         </div>
+         <div style="height:1px; background:var(--glass-border); margin:0 20px;"></div>
+         <div class="menu-item" onclick="toggleTheme()" style="margin:0; border:none; background:transparent;">
+             <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:20px; background:rgba(255,255,255,0.05); width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:10px;">🌗</span>
+                <span>Сменить тему</span>
+            </div>
+         </div>
+      </div>
+
+      <!-- ADMIN BUTTON -->
       <div id="admin-panel-card" class="card" style="display: none; padding: 15px; border: 1px dashed var(--accent-gold); background: rgba(255, 204, 0, 0.05);">
         <div class="menu-item" onclick="openAdminPanel()" style="margin:0; background:transparent; border:none; padding:5px;">
             <span style="color: var(--accent-gold);">🛡️ Панель администратора</span>
             <span id="admin-badge" style="background:var(--accent-gold); color:#000; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:800; opacity:0;">0</span>
         </div>
       </div>
-
-      <div class="card" style="padding: 15px;">
-        <div class="menu-item" onclick="toggleTheme()">
-            <span>🌗 Сменить тему</span>
-            <small style="opacity: 0.6;">Light / Dark</small>
-        </div>
-        <div class="menu-item" onclick="tg.openTelegramLink('https://t.me/LolikMoney')">
-            <span style="color: var(--accent-cyan);">💬 Поддержка</span>
-            <span style="opacity: 0.3;">→</span>
-        </div>
+      
+      <div class="menu-item" onclick="tg.openTelegramLink('https://t.me/LolikMoney')" style="justify-content:center; opacity:0.7; font-size:12px;">
+          💬 Поддержка
       </div>
+    </section>
+
+    <!-- HISTORY VIEW (SUB-VIEW) -->
+    <section id="view-history" class="hidden anim-entry">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+            <button class="btn btn-secondary" style="padding:10px;" onclick="closeHistory()">←</button>
+            <h2 style="margin:0;">История</h2>
+        </div>
+        <div id="history-list" class="card" style="padding:0; overflow:hidden;">
+            <!-- Rendered via JS -->
+        </div>
     </section>
 
   </div>
 
   <!-- NAVIGATION -->
   <nav class="nav-bar">
-    <div class="nav-item active" id="tab-tasks" onclick="showTab('tasks')">Задания</div>
-    <div class="nav-item" id="tab-profile" onclick="showTab('profile')">Профиль</div>
+    <div class="nav-item active" id="tab-tasks" onclick="showTab('tasks')">
+        <span>📋</span> Задания
+    </div>
+    <div class="nav-item" id="tab-friends" onclick="showTab('friends')">
+        <span>👥</span> Друзья
+    </div>
+    <div class="nav-item" id="tab-profile" onclick="showTab('profile')">
+        <span>👤</span> Профиль
+    </div>
   </nav>
 
   <!-- FAB -->
@@ -112,26 +187,37 @@
         <h2 style="margin:0 0 5px;">Новое задание</h2>
         <p style="color:var(--text-dim); font-size:14px; margin-bottom:15px;">Настройте параметры продвижения</p>
         
-        <label class="input-label">Тип площадки</label>
+        <label class="input-label">Платформа</label>
         <select id="t-type" onchange="recalc()">
-            <option value="ya" data-p="120">📍 Яндекс Карты (120₽ / шт)</option>
-            <option value="gm" data-p="75">🌍 Google Maps (75₽ / шт)</option>
-            <option value="tg" data-p="15">✈️ Telegram (15₽ / шт)</option>
+            <option value="tg" data-p="0">✈️ Telegram (Активность)</option>
+            <option value="ya" data-p="120">📍 Яндекс Карты (120₽)</option>
+            <option value="gm" data-p="75">🌍 Google Maps (75₽)</option>
         </select>
+
+        <!-- SUBTYPE FOR TELEGRAM -->
+        <div id="tg-subtype-wrapper" style="margin-top: 10px;">
+            <label class="input-label">Тип задания Telegram</label>
+            <select id="t-tg-subtype" onchange="recalc()">
+                <!-- Populated by JS -->
+            </select>
+            <div style="font-size:11px; color:var(--text-dim); margin:5px 0 0 5px;" id="tg-subtype-desc">
+                Исполнитель получит ~50% от стоимости
+            </div>
+        </div>
 
         <div id="tg-options" class="hidden" style="margin-top: 15px; background: rgba(0,234,255,0.05); padding: 12px; border-radius: 16px; border: 1px dashed var(--glass-border);">
             <div style="font-size:12px; color:var(--text-dim); line-height:1.4;">
                 <b>⚡ Автоматическая проверка:</b><br>
-                Обязательно добавьте бота <span style="color:var(--accent-cyan);">@ReviewCashBot</span> в администраторы канала, иначе он не сможет проверять подписки.
+                Наш бот <span style="color:var(--accent-cyan);">@ReviewCashBot</span> проверит выполнение задания автоматически.
             </div>
         </div>
 
-        <label class="input-label">Ссылка на объект (Карты/Канал)</label>
-        <input type="text" id="t-target" placeholder="https://..." style="margin-top:5px;">
+        <label class="input-label">Ссылка (Канал/Бот/Пост)</label>
+        <input type="text" id="t-target" placeholder="https://t.me/..." style="margin-top:5px;">
         <div id="t-target-status" class="input-status"></div>
 
-        <label class="input-label">Текст отзыва / Комментарий</label>
-        <textarea id="t-text" rows="3" placeholder="Например: Отличное место, вкусный кофе..." style="margin-top:5px;"></textarea>
+        <label class="input-label">Текст задания (Необязательно)</label>
+        <textarea id="t-text" rows="2" placeholder="Например: Вступите и не отписывайтесь..." style="margin-top:5px;"></textarea>
 
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:15px;">
             <div>
@@ -139,7 +225,7 @@
                 <input type="number" id="t-qty" value="10" min="1" oninput="recalc()" style="margin-top:5px;">
             </div>
             <div>
-                <label class="input-label">Валюта оплаты</label>
+                <label class="input-label">Валюта</label>
                 <select id="t-cur" onchange="recalc()" style="margin-top:5px;">
                     <option value="rub">RUB (₽)</option>
                     <option value="star">Stars (⭐)</option>
@@ -149,8 +235,8 @@
 
         <div class="total-badge">
             <div style="display:flex; flex-direction:column; gap:2px;">
-                <span style="font-weight:700; opacity:0.7;">Итого с комиссией:</span>
-                <span style="font-size:11px; color:var(--text-dim);">Комиссия сервиса: 15%</span>
+                <span style="font-weight:700; opacity:0.7;">Итого к оплате:</span>
+                <span style="font-size:11px; color:var(--text-dim);">Включая комиссию сервиса</span>
             </div>
             <span id="t-total" style="font-size:24px; font-weight:900; color:var(--accent-cyan);">0 ₽</span>
         </div>
@@ -164,27 +250,27 @@
     <div class="modal">
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
             <div>
-                <h2 id="td-title" style="margin:0;">Задание</h2>
-                <div id="td-reward" style="color:var(--accent-green); font-weight:800; font-size:18px; margin-top:5px;">+0 ₽</div>
+                <div id="td-type-badge" class="status-badge st-pending" style="margin-bottom:5px; display:inline-block;">TELEGRAM</div>
+                <h2 id="td-title" style="margin:0; font-size: 20px;">Задание</h2>
+                <div id="td-reward" style="color:var(--accent-green); font-weight:800; font-size:24px; margin-top:5px;">+0 ₽</div>
             </div>
-            <div id="td-icon" class="brand-box" style="width:60px; height:60px;"></div>
+            <div id="td-icon" class="brand-box" style="width:60px; height:60px; font-size:30px;"></div>
         </div>
         
         <div class="detail-block">
-            <label class="input-label">Ссылка для перехода:</label>
+            <label class="input-label">Целевая ссылка:</label>
             <div class="copy-box" onclick="copyLink()" style="margin-top:5px;">
                 <span id="td-link" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:85%; font-size:13px; color:var(--accent-cyan);">https://...</span>
                 <span>🔗</span>
             </div>
-            <a id="td-link-btn" href="#" target="_blank" class="btn btn-secondary" style="width:100%; margin-top:10px; padding:10px; font-size:12px;">Перейти по ссылке</a>
+            <a id="td-link-btn" href="#" target="_blank" class="btn btn-secondary" style="width:100%; margin-top:10px; padding:10px; font-size:13px;">↗️ Перейти к выполнению</a>
         </div>
 
         <div class="detail-block">
-            <label class="input-label">Что нужно сделать / Написать:</label>
+            <label class="input-label">Инструкция:</label>
             <div id="td-text" style="background:var(--glass); padding:15px; border-radius:15px; margin-top:5px; font-size:14px; line-height:1.4;">
-                Текст задания...
+                ...
             </div>
-            <button class="btn btn-secondary" style="width:100%; margin-top:10px; padding:10px; font-size:12px;" onclick="copyText()">Копировать текст</button>
         </div>
 
         <!-- PROOF AREA -->
@@ -210,7 +296,7 @@
                     <div style="font-size:24px;">🤖</div>
                     <div style="font-size:13px; line-height:1.3;">
                         <b>Автоматическая проверка</b><br>
-                        Бот проверит вашу подписку на канал. Не отписывайтесь 24 часа.
+                        Выполните задание и нажмите кнопку проверки ниже.
                     </div>
                 </div>
             </div>
@@ -223,14 +309,27 @@
   <!-- ADMIN / MODERATION MODAL -->
   <div id="m-admin" class="overlay">
     <div class="modal">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
             <h2 style="margin:0;">🛡️ Модерация</h2>
             <div style="font-size:13px; opacity:0.5;">Admin Panel</div>
         </div>
-        <p style="color:var(--text-dim); font-size:14px; margin-bottom:20px;">Проверяйте отчеты исполнителей</p>
+
+        <div class="admin-tabs">
+            <div class="admin-tab active" onclick="switchAdminTab('proofs')" id="at-proofs">Задания</div>
+            <div class="admin-tab" onclick="switchAdminTab('withdrawals')" id="at-withdrawals">Выводы</div>
+        </div>
         
-        <div id="admin-list" style="display:flex; flex-direction:column; gap:15px;">
-            <!-- Rendered via JS -->
+        <div id="admin-view-proofs">
+            <div id="admin-list" style="display:flex; flex-direction:column; gap:15px;">
+                <!-- Rendered via JS -->
+            </div>
+        </div>
+
+        <div id="admin-view-withdrawals" class="hidden">
+             <p style="color:var(--text-dim); font-size:14px; margin-bottom:20px; text-align:center;">Заявки на выплату средств</p>
+             <div id="admin-withdraw-list" style="display:flex; flex-direction:column; gap:15px;">
+                <!-- Rendered via JS -->
+            </div>
         </div>
     </div>
   </div>
@@ -292,7 +391,14 @@
         <h2>Вывод средств</h2>
         <input type="text" id="w-details" placeholder="Карта или номер телефона">
         <input type="number" id="w-amount" placeholder="Сумма вывода" style="margin-top:10px;">
-        <button class="btn btn-secondary" style="width:100%; margin-top:20px;" onclick="requestWithdraw()">Создать заявку</button>
+        <button class="btn btn-main" style="width:100%; margin-top:20px;" onclick="requestWithdraw()">Создать заявку</button>
+        
+        <div style="margin-top: 30px;">
+            <h3 style="font-size:16px;">Мои заявки</h3>
+            <div id="withdrawals-list" style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">
+                <!-- Populated by JS -->
+            </div>
+        </div>
     </div>
   </div>
 
