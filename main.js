@@ -25,20 +25,16 @@ const MockTelegram = {
 
 // HELPER: Get User Data Safely
 function getTgUser() {
-    // 1. Try real Telegram WebApp
     if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
         return window.Telegram.WebApp.initDataUnsafe.user;
     }
-    // 2. Fallback to Mock if in dev/browser environment
     return MockTelegram.WebApp.initDataUnsafe.user;
 }
 
-// Global TG reference (for methods)
 const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : MockTelegram.WebApp;
 
 // --- CONFIGURATION ---
-// YOUR ADMIN ID: 6482440657
-const ADMIN_IDS = [6482440657]; 
+const ADMIN_IDS = [6482440657, 123456]; 
 
 const ASSETS = {
     ya: 'https://www.google.com/s2/favicons?sz=64&domain=yandex.ru',
@@ -46,38 +42,75 @@ const ASSETS = {
     tg: 'https://cdn-icons-png.flaticon.com/512/2111/2111646.png'
 };
 
+const TG_TASK_TYPES = {
+    tg_sub:   { label: 'Подписка на канал',      cost: 30,  reward: 15, icon: '📢', action: 'Подписаться' },
+    tg_group: { label: 'Вступление в группу',    cost: 25,  reward: 12, icon: '👥', action: 'Вступить' },
+    tg_react: { label: 'Просмотр + Реакция',     cost: 10,  reward: 5,  icon: '❤️', action: 'Смотреть пост' },
+    tg_poll:  { label: 'Участие в опросе',       cost: 15,  reward: 7,  icon: '📊', action: 'Голосовать' },
+    tg_start: { label: 'Запуск бота /start',     cost: 25,  reward: 12, icon: '🤖', action: 'Запустить' },
+    tg_msg:   { label: 'Сообщение боту',         cost: 15,  reward: 7,  icon: '✉️', action: 'Написать' },
+    tg_mapp:  { label: 'Открыть Mini App',       cost: 40,  reward: 20, icon: '📱', action: 'Открыть App' },
+    tg_hold:  { label: 'Подписка + 24ч',         cost: 60,  reward: 30, icon: '⏳', action: 'Подписаться' },
+    tg_invite: { label: 'Инвайт друзей',         cost: 100, reward: 50, icon: '🤝', action: 'Пригласить' },
+};
+
+// --- TASK LIMITS ---
+const TASK_LIMITS = {
+    ya: 3 * 24 * 60 * 60 * 1000, // 3 days
+    gm: 1 * 24 * 60 * 60 * 1000  // 1 day
+};
+
+// INITIAL STATE
 let state = {
     filter: 'all',
-    user: { rub: 0, stars: 0 },
+    user: { 
+        rub: 0, 
+        stars: 0,
+        xp: 0,
+        level: 1
+    },
     tasks: [],
-    moderation: [] // New queue for pending reviews
+    moderation: [],
+    history: [],      
+    withdrawals: [],  
+    referrals: {      
+        count: 0,
+        earned: 0
+    },
+    limits: {} // Local cache of limits
 };
+
+// Fake Leaderboard Data
+const LEADERBOARD_MOCK = [
+    { name: 'AlexCrypto', count: 142, earned: 45000 },
+    { name: 'Elena_V', count: 98, earned: 21500 },
+    { name: 'MaxPower', count: 76, earned: 18000 },
+    { name: 'Dimon99', count: 45, earned: 9800 },
+    { name: 'User_772', count: 32, earned: 5400 }
+];
 
 let isLinkValid = false;
 let linkCheckTimer = null;
 let selectedProofFile = null;
+let activeAdminTab = 'proofs';
 
 // Initialization
 document.addEventListener('DOMContentLoaded', async () => {
-    // --- 1. INITIALIZE TELEGRAM ---
     if (window.Telegram && window.Telegram.WebApp) {
         if (window.Telegram.WebApp.ready) window.Telegram.WebApp.ready();
         if (window.Telegram.WebApp.expand) window.Telegram.WebApp.expand();
     } else {
-        // Dev mode fallback
         MockTelegram.WebApp.expand();
     }
     
-    // --- 2. SETUP UI IMMEDIATELY (AVATAR LOGIC) ---
+    populateTgTypes();
     setupProfileUI();
 
-    // --- 3. LOAD DATA ---
     try { await loadData(); } catch(e) { console.error('Data load error', e); }
     
-    // --- 4. CHECK ADMIN RIGHTS ---
     checkAdmin();
+    checkLevelUp(); // Check if initial level is correct
 
-    // --- 5. RENDER & FINALIZE ---
     render();
     updateAdminBadge();
     
@@ -91,7 +124,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 300);
     }
     
-    // Close modals logic
     document.querySelectorAll('.overlay').forEach(overlay => {
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
@@ -100,7 +132,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // Link Validation Logic
     const targetInput = document.getElementById('t-target');
     if(targetInput) {
         targetInput.addEventListener('input', (e) => {
@@ -130,57 +161,57 @@ document.addEventListener('DOMContentLoaded', async () => {
                     statusEl.innerHTML = '❌ Некорректная ссылка';
                     isLinkValid = false;
                 }
-            }, 1200);
+            }, 800);
         });
     }
+    
+    // Initial recalc for modal
+    recalc();
 });
 
-// 🔥 ROBUST AVATAR & NAME LOGIC (FIXED)
+function populateTgTypes() {
+    const sel = document.getElementById('t-tg-subtype');
+    if(!sel) return;
+    sel.innerHTML = '';
+    Object.keys(TG_TASK_TYPES).forEach(k => {
+        const t = TG_TASK_TYPES[k];
+        const opt = document.createElement('option');
+        opt.value = k;
+        opt.textContent = `${t.icon} ${t.label} (${t.cost}₽)`;
+        sel.appendChild(opt);
+    });
+}
+
 function setupProfileUI() {
     try {
         const user = getTgUser();
-        
-        // 1. Get Elements
         const headerAvatar = document.getElementById('header-avatar');
         const profileAvatar = document.getElementById('u-pic');
         const headerName = document.getElementById('header-name');
         const profileName = document.getElementById('u-name');
         
-        // 2. Determine Display Name (Safe Fallback)
         let displayName = 'Гость';
-        let seed = 'G'; // For fallback avatar generation
+        let seed = 'G'; 
 
         if (user) {
-            if (user.username) {
-                displayName = '@' + user.username;
-            } else if (user.first_name || user.last_name) {
-                displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
-            } else {
-                displayName = 'Пользователь';
-            }
-            
-            // Generate seed for avatar from any available name part
+            if (user.username) displayName = '@' + user.username;
+            else if (user.first_name || user.last_name) displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+            else displayName = 'Пользователь';
             seed = user.first_name || user.username || 'U';
         }
 
-        // 3. Determine Avatar URL (Strict Check)
-        // Telegram user.photo_url is often missing or undefined.
-        // We only use it if it's a valid string starting with http.
         let photoSrc;
         if (user && typeof user.photo_url === 'string' && user.photo_url.startsWith('http')) {
             photoSrc = user.photo_url;
         } else {
-            // Fallback: Generate avatar based on name seed
             photoSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=128&bold=true`;
         }
 
-        // 4. Update UI
         if (headerName) headerName.innerText = displayName;
         if (profileName) profileName.innerText = displayName;
 
         if (headerAvatar) {
             headerAvatar.src = photoSrc;
-            // Backup error handler just in case URL expires or breaks
             headerAvatar.onerror = () => headerAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=128&bold=true`;
         }
         
@@ -188,9 +219,6 @@ function setupProfileUI() {
             profileAvatar.src = photoSrc;
             profileAvatar.onerror = () => profileAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=128&bold=true`;
         }
-
-        console.log('User Profile Loaded:', { displayName, hasPhoto: !!(user && user.photo_url) });
-
     } catch(e) {
         console.error('Profile Setup Error:', e);
     }
@@ -199,13 +227,8 @@ function setupProfileUI() {
 function checkAdmin() {
     const u = getTgUser();
     const adminPanel = document.getElementById('admin-panel-card');
-    
-    // Only show if user exists AND ID is in the list
     if (u && u.id && ADMIN_IDS.includes(Number(u.id))) {
-        if (adminPanel) {
-            adminPanel.style.display = 'block';
-            console.log('Admin panel enabled for ID:', u.id);
-        }
+        if (adminPanel) adminPanel.style.display = 'block';
     } else {
         if (adminPanel) adminPanel.style.display = 'none';
     }
@@ -214,30 +237,46 @@ function checkAdmin() {
 async function loadData() {
     try {
         const storedUser = await miniappsAI.storage.getItem('userBalance');
-        if (storedUser) state.user = JSON.parse(storedUser);
-        else state.user = { rub: 500, stars: 10 }; 
+        if (storedUser) {
+            state.user = JSON.parse(storedUser);
+            if(typeof state.user.xp === 'undefined') state.user.xp = 0;
+            if(typeof state.user.level === 'undefined') state.user.level = 1;
+        } else {
+            state.user = { rub: 500, stars: 10, xp: 0, level: 1 }; 
+        }
 
         const storedTasks = await miniappsAI.storage.getItem('tasksList');
         if (storedTasks) state.tasks = JSON.parse(storedTasks);
         else {
+            // Updated mock tasks with new types
             state.tasks = [
                 { 
-                    id: 1, type: 'ya', name: 'Отзыв Яндекс Карты', price: 120, owner: 'other', checkType: 'manual',
+                    id: 1, type: 'tg', subType: 'tg_sub', name: 'Подписка на канал', price: 15, owner: 'other', checkType: 'auto',
+                    target: 'https://t.me/telegram', text: 'Подпишись на официальный канал новостей.'
+                },
+                { 
+                    id: 2, type: 'ya', name: 'Отзыв Яндекс Карты', price: 120, owner: 'other', checkType: 'manual',
                     target: 'https://yandex.ru/maps', text: 'Поставьте 5 звезд и напишите про вежливый персонал.'
                 },
                 { 
-                    id: 2, type: 'gm', name: 'Отзыв Google Maps', price: 75, owner: 'other', checkType: 'manual',
-                    target: 'https://google.com/maps', text: 'Короткий позитивный отзыв.'
-                },
-                { 
-                    id: 3, type: 'tg', name: 'Подписка на канал', price: 15, owner: 'other', checkType: 'auto',
-                    target: 'https://t.me/telegram', text: 'Подписаться и просмотреть 3 поста.'
+                    id: 3, type: 'tg', subType: 'tg_poll', name: 'Участие в опросе', price: 7, owner: 'other', checkType: 'auto',
+                    target: 'https://t.me/durov', text: 'Проголосуйте в последнем опросе.'
                 }
             ];
         }
 
         const storedMod = await miniappsAI.storage.getItem('adminQueue');
         if (storedMod) state.moderation = JSON.parse(storedMod);
+
+        const storedHist = await miniappsAI.storage.getItem('userHistory');
+        if (storedHist) state.history = JSON.parse(storedHist);
+
+        const storedWd = await miniappsAI.storage.getItem('withdrawals');
+        if (storedWd) state.withdrawals = JSON.parse(storedWd);
+
+        // Load Limits
+        const storedLimits = await miniappsAI.storage.getItem('taskLimitData');
+        if(storedLimits) state.limits = JSON.parse(storedLimits);
 
     } catch (e) { console.error('Data load error:', e); }
 }
@@ -246,18 +285,111 @@ async function saveData() {
     await miniappsAI.storage.setItem('userBalance', JSON.stringify(state.user));
     await miniappsAI.storage.setItem('tasksList', JSON.stringify(state.tasks));
     await miniappsAI.storage.setItem('adminQueue', JSON.stringify(state.moderation));
+    await miniappsAI.storage.setItem('userHistory', JSON.stringify(state.history));
+    await miniappsAI.storage.setItem('withdrawals', JSON.stringify(state.withdrawals));
+}
+
+// --- TASK LIMIT LOGIC ---
+async function checkTaskAvailability(type) {
+    if (!TASK_LIMITS[type]) return { ok: true };
+    
+    // Ensure we have the latest limits
+    const raw = await miniappsAI.storage.getItem('taskLimitData');
+    const data = raw ? JSON.parse(raw) : {};
+    
+    const last = data[type] || 0;
+    const diff = Date.now() - last;
+
+    if (diff < TASK_LIMITS[type]) {
+         const remaining = TASK_LIMITS[type] - diff;
+         return { ok: false, remainingMs: remaining };
+    }
+    return { ok: true };
+}
+
+async function recordTaskAction(type) {
+    if (!TASK_LIMITS[type]) return;
+    
+    const raw = await miniappsAI.storage.getItem('taskLimitData');
+    const data = raw ? JSON.parse(raw) : {};
+    
+    data[type] = Date.now();
+    await miniappsAI.storage.setItem('taskLimitData', JSON.stringify(data));
+    state.limits = data; // Update local state
+}
+
+// --- HISTORY SYSTEM ---
+function addHistory(type, amount, desc) {
+    state.history.unshift({
+        id: Date.now(),
+        type: type, // 'earn', 'spend', 'withdraw'
+        amount: amount,
+        desc: desc,
+        date: new Date().toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    });
+    if (state.history.length > 50) state.history.pop();
+}
+
+function renderHistory() {
+    const list = document.getElementById('history-list');
+    if(!list) return;
+    list.innerHTML = '';
+    
+    if(state.history.length === 0) {
+        list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-dim);">История пуста</div>';
+        return;
+    }
+
+    state.history.forEach(item => {
+        let icon = '📝';
+        let colorClass = '';
+        let sign = '';
+
+        if(item.type === 'earn') { icon = '💰'; colorClass = 'amt-green'; sign = '+'; }
+        else if(item.type === 'spend') { icon = '💸'; colorClass = 'amt-red'; sign = '-'; }
+        else if(item.type === 'withdraw') { icon = '🏦'; colorClass = 'amt-red'; sign = '-'; }
+
+        list.insertAdjacentHTML('beforeend', `
+            <div class="list-item">
+                <div class="list-icon">${icon}</div>
+                <div class="list-meta">
+                    <div class="list-title">${item.desc}</div>
+                    <div class="list-date">${item.date}</div>
+                </div>
+                <div class="list-amount ${colorClass}">${sign}${item.amount} ₽</div>
+            </div>
+        `);
+    });
+}
+
+// --- LEVELING SYSTEM ---
+function addXP(amount) {
+    state.user.xp += amount;
+    checkLevelUp();
+}
+
+function checkLevelUp() {
+    const newLevel = 1 + Math.floor(state.user.xp / 100);
+    
+    if (newLevel > state.user.level) {
+        state.user.level = newLevel;
+        const bonus = 50;
+        state.user.rub += bonus;
+        addHistory('earn', bonus, `Бонус за ${newLevel} уровень!`);
+        tg.showAlert(`🎉 Поздравляем!\nВы достигли ${newLevel} уровня!\nНаграда: +${bonus} ₽`);
+    }
 }
 
 // --- CORE LOGIC: CREATE TASK ---
 window.createTask = async function() {
     const typeEl = document.getElementById('t-type');
+    const subtypeEl = document.getElementById('t-tg-subtype');
     const qtyEl = document.getElementById('t-qty');
     const curEl = document.getElementById('t-cur');
     const targetEl = document.getElementById('t-target');
     const textEl = document.getElementById('t-text');
 
     const type = typeEl.value;
-    const pricePerItem = parseInt(typeEl.selectedOptions[0].dataset.p);
     const qty = parseInt(qtyEl.value);
     const currency = curEl.value;
     const target = targetEl.value.trim();
@@ -265,21 +397,37 @@ window.createTask = async function() {
 
     if (qty < 1) return tg.showAlert('Минимальное количество: 1');
     if (!target) return tg.showAlert('Укажите ссылку на объект');
-    if (!text) return tg.showAlert('Напишите текст задания/отзыва');
+    // text is optional for some TG types, but good to have
 
-    // Validation Check
     if (!isLinkValid) {
-        return tg.showAlert('Пожалуйста, укажите корректную ссылку и дождитесь проверки (зеленая галочка).');
+        return tg.showAlert('Пожалуйста, укажите корректную ссылку и дождитесь проверки.');
     }
 
-    // Determine Check Type: Auto for TG, Manual for others
-    let checkType = 'manual'; 
+    let pricePerItem = 0;
+    let workerReward = 0;
+    let taskName = '';
+    let subType = null;
+    let checkType = 'manual';
+
     if (type === 'tg') {
-        checkType = 'auto'; // ALWAYS auto for Telegram
+        const stKey = subtypeEl.value;
+        const conf = TG_TASK_TYPES[stKey];
+        pricePerItem = conf.cost;
+        workerReward = conf.reward;
+        taskName = conf.label;
+        subType = stKey;
+        checkType = 'auto'; // Most TG tasks are auto
+    } else {
+        pricePerItem = parseInt(typeEl.selectedOptions[0].dataset.p);
+        taskName = type === 'ya' ? 'Отзыв Яндекс' : 'Отзыв Google';
+        checkType = 'manual';
+        // Manual review tasks
+        workerReward = Math.floor(pricePerItem * 0.5); 
     }
 
     const subtotal = pricePerItem * qty;
-    const totalCostRub = Math.ceil(subtotal * 1.15); // 15% added
+    // No extra 15% commission if using configured prices which are "Client Pays"
+    const totalCostRub = subtotal; 
 
     let finalCost = totalCostRub;
     if (currency === 'star') {
@@ -289,6 +437,7 @@ window.createTask = async function() {
     if (currency === 'rub') {
         if (state.user.rub < finalCost) return tg.showAlert(`Недостаточно средств. Нужно: ${finalCost} ₽`);
         state.user.rub -= finalCost;
+        addHistory('spend', finalCost, `Создание: ${taskName}`);
     } else {
         if (state.user.stars < finalCost) return tg.showAlert(`Недостаточно звезд. Нужно: ${finalCost} ⭐`);
         state.user.stars -= finalCost;
@@ -297,8 +446,10 @@ window.createTask = async function() {
     const newTask = { 
         id: Date.now(), 
         type: type, 
-        name: type === 'tg' ? 'Подписка (Авто)' : 'Отзыв (Заказ)', 
-        price: pricePerItem, 
+        subType: subType, // can be null
+        name: taskName, 
+        price: workerReward, // Store REWARD for worker
+        cost: pricePerItem,  // Store COST for reference
         owner: 'me',
         qty: qty,
         target: target,
@@ -313,7 +464,7 @@ window.createTask = async function() {
     tg.showAlert(`✅ Задание создано! Списано ${finalCost} ${currency === 'rub' ? '₽' : '⭐'}`);
 };
 
-window.handleTask = function(btn, owner, id) {
+window.handleTask = async function(btn, owner, id) {
     if(owner === 'me') {
         tg.showConfirm('Удалить это задание? Средства не вернутся (демо).', async (confirmed) => {
             if (confirmed) {
@@ -326,11 +477,37 @@ window.handleTask = function(btn, owner, id) {
         const task = state.tasks.find(t => t.id === id);
         if (!task) return;
 
+        // --- CHECK LIMITS ---
+        if (TASK_LIMITS[task.type]) {
+            btn.classList.add('working'); // Indicate loading
+            const availability = await checkTaskAvailability(task.type);
+            btn.classList.remove('working');
+
+            if (!availability.ok) {
+                const hrs = Math.ceil(availability.remainingMs / (1000 * 60 * 60));
+                const limitText = task.type === 'ya' ? 'раз в 3 дня' : 'раз в день';
+                return tg.showAlert(
+                    `⏳ Это задание можно выполнять ${limitText}.\n\n` + 
+                    `Доступно через: ~${hrs} ч.`
+                );
+            }
+        }
+        // --------------------
+
         document.getElementById('td-title').innerText = task.name;
         document.getElementById('td-reward').innerText = `+${task.price} ₽`;
         
         const iconBox = document.getElementById('td-icon');
-        iconBox.innerHTML = `<img src="${ASSETS[task.type]}" alt="${task.type}" style="width:100%; height:100%; object-fit:contain;">`;
+        let iconChar = ASSETS[task.type] ? `<img src="${ASSETS[task.type]}" style="width:100%">` : '📄';
+        
+        if (task.type === 'tg' && task.subType && TG_TASK_TYPES[task.subType]) {
+            iconChar = TG_TASK_TYPES[task.subType].icon;
+            document.getElementById('td-type-badge').innerText = TG_TASK_TYPES[task.subType].label.toUpperCase();
+        } else {
+            document.getElementById('td-type-badge').innerText = task.type.toUpperCase();
+        }
+        
+        iconBox.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:32px;">${iconChar}</div>`;
         
         const linkEl = document.getElementById('td-link');
         const linkBtn = document.getElementById('td-link-btn');
@@ -338,17 +515,12 @@ window.handleTask = function(btn, owner, id) {
         
         linkEl.innerText = task.target;
         linkBtn.href = task.target;
-        textEl.innerText = task.text || 'Нет описания';
+        textEl.innerText = task.text || 'Нет дополнительных инструкций';
         
-        // PROOF SECTION LOGIC
-        // Determine if it's Automated TG or Manual (Screenshots)
         const isTgAuto = task.checkType === 'auto';
-        
-        // Hide/Show Areas
         document.getElementById('proof-manual').classList.toggle('hidden', isTgAuto);
         document.getElementById('proof-auto').classList.toggle('hidden', !isTgAuto);
         
-        // Reset Inputs for Manual
         document.getElementById('p-username').value = '';
         document.getElementById('p-file').value = '';
         document.getElementById('p-filename').innerText = '📷 Прикрепить скриншот';
@@ -360,8 +532,12 @@ window.handleTask = function(btn, owner, id) {
         actBtn.classList.remove('working');
         
         if(isTgAuto) {
-            actBtn.innerHTML = '⚡ Проверить подписку';
-            actBtn.onclick = () => checkTgSubscription(id);
+            let actionText = '⚡ Проверить выполнение';
+            if (task.subType && TG_TASK_TYPES[task.subType]) {
+                actionText = '⚡ Проверить: ' + TG_TASK_TYPES[task.subType].action;
+            }
+            actBtn.innerHTML = actionText;
+            actBtn.onclick = () => checkTgTask(id, task.subType);
         } else {
             actBtn.innerHTML = '📤 Отправить отчет';
             actBtn.onclick = () => submitReviewProof(id);
@@ -371,15 +547,22 @@ window.handleTask = function(btn, owner, id) {
     }
 };
 
-window.checkTgSubscription = function(id) {
+window.checkTgTask = function(id, subType) {
     const btn = document.getElementById('td-action-btn');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spin-icon">⏳</span> Проверка подписки...';
     
-    // Auto check logic
+    let msg = 'Проверка подписки...';
+    if(subType === 'tg_poll') msg = 'Проверка голоса...';
+    if(subType === 'tg_react') msg = 'Проверка реакции...';
+    if(subType === 'tg_start') msg = 'Проверка запуска бота...';
+    if(subType === 'tg_mapp') msg = 'Проверка запуска App...';
+
+    btn.innerHTML = `<span class="spin-icon">⏳</span> ${msg}`;
+    
+    // Simulate API call delay
     setTimeout(async () => {
-        completeTaskLogic(id, 'Подписка подтверждена ботом!', true);
-    }, 2000);
+        completeTaskLogic(id, 'Задание успешно проверено!', true);
+    }, 2500);
 };
 
 window.submitReviewProof = async function(id) {
@@ -391,22 +574,32 @@ window.submitReviewProof = async function(id) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spin-icon">⏳</span> Загрузка доказательств...';
 
-    // Simulate upload and add to Moderation Queue
     try {
         await new Promise(r => setTimeout(r, 1500));
         
         const task = state.tasks.find(t => t.id === id);
+        
+        // Simulate Supabase upload by creating a fake URL
+        const fakeScreenshotUrl = `https://placehold.co/600x400/000000/FFF?text=SCREENSHOT+${selectedProofFile.name}`;
+
         const proofItem = {
             id: Date.now(),
             taskId: task.id,
             taskName: task.name,
+            targetUrl: task.target,
             workerName: user,
             price: task.price,
             fileName: selectedProofFile.name,
+            screenshotUrl: fakeScreenshotUrl,
             timestamp: new Date().toLocaleString()
         };
         
         state.moderation.push(proofItem);
+        
+        // --- RECORD LIMIT TIMESTAMP ---
+        // We assume submitting a proof counts as an "attempt/execution" to prevent spamming
+        await recordTaskAction(task.type);
+        // ------------------------------
         
         await saveData();
         updateAdminBadge();
@@ -426,6 +619,8 @@ function completeTaskLogic(id, msg, isAuto) {
     if (task) {
         const reward = parseInt(task.price);
         state.user.rub += reward;
+        addHistory('earn', reward, `Выполнено: ${task.name}`);
+        addXP(reward); // XP = Earned Amount
         saveData();
         render();
         closeModal();
@@ -442,13 +637,30 @@ window.updateFileName = function(input) {
     }
 };
 
-// --- ADMIN / MODERATION LOGIC ---
+// --- ADMIN / MODERATION SYSTEM ---
 window.openAdminPanel = function() {
-    renderAdmin();
+    switchAdminTab('proofs');
     openModal('m-admin');
 };
 
+window.switchAdminTab = function(tab) {
+    activeAdminTab = tab;
+    
+    document.getElementById('at-proofs').classList.toggle('active', tab === 'proofs');
+    document.getElementById('at-withdrawals').classList.toggle('active', tab === 'withdrawals');
+    
+    document.getElementById('admin-view-proofs').classList.toggle('hidden', tab !== 'proofs');
+    document.getElementById('admin-view-withdrawals').classList.toggle('hidden', tab !== 'withdrawals');
+    
+    renderAdmin();
+};
+
 window.renderAdmin = function() {
+    if (activeAdminTab === 'proofs') renderAdminProofs();
+    else renderAdminWithdrawals();
+};
+
+function renderAdminProofs() {
     const list = document.getElementById('admin-list');
     list.innerHTML = '';
     
@@ -464,19 +676,75 @@ window.renderAdmin = function() {
         div.style.marginBottom = '0';
         div.innerHTML = `
             <div style="font-weight:700; font-size:14px; margin-bottom:5px;">${item.taskName}</div>
-            <div style="font-size:12px; color:var(--text-dim);">Исполнитель: <span style="color:var(--text-main);">${item.workerName}</span></div>
-            <div style="font-size:12px; color:var(--text-dim);">Файл: ${item.fileName}</div>
-            <div style="margin-top:10px; padding:10px; background:var(--bg); border-radius:10px; display:flex; align-items:center; justify-content:center; gap:5px; border:1px dashed var(--glass-border);">
-                <span>📷</span> <span style="font-size:11px;">[Скриншот скрыт]</span>
+            <div style="font-size:12px; color:var(--text-dim); margin-bottom:5px;">
+                📅 ${item.timestamp}<br>
+                👤 Ник: <span style="color:var(--text-main); font-weight:700;">${item.workerName}</span>
             </div>
+            
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn btn-secondary btn-sm" onclick="window.open('${item.targetUrl}', '_blank')">🔗 Ссылка</button>
+                <button class="btn btn-secondary btn-sm" onclick="window.open('${item.screenshotUrl}', '_blank')">📷 Скриншот</button>
+            </div>
+
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:15px;">
-                <button class="btn" style="background:rgba(255,75,75,0.1); color:#ff4b4b; padding:10px;" onclick="adminDecision(${item.id}, false)">Отклонить</button>
-                <button class="btn" style="background:rgba(0,255,136,0.1); color:var(--accent-green); padding:10px;" onclick="adminDecision(${item.id}, true)">Оплатить (${item.price}₽)</button>
+                <button class="btn" style="background:rgba(255,75,75,0.1); color:#ff4b4b; padding:10px;" onclick="adminDecision(${item.id}, false)">❌ Отказ</button>
+                <button class="btn" style="background:rgba(0,255,136,0.1); color:var(--accent-green); padding:10px;" onclick="adminDecision(${item.id}, true)">✅ Принять</button>
             </div>
         `;
         list.appendChild(div);
     });
-};
+}
+
+function renderAdminWithdrawals() {
+    const list = document.getElementById('admin-withdraw-list');
+    list.innerHTML = '';
+    
+    // Filter only pending for action, or show all? Let's show all but sort pending first
+    const items = [...state.withdrawals].sort((a,b) => {
+        if(a.status === 'pending' && b.status !== 'pending') return -1;
+        if(a.status !== 'pending' && b.status === 'pending') return 1;
+        return b.id - a.id;
+    });
+
+    if(items.length === 0) {
+        list.innerHTML = '<div style="text-align:center; padding:20px; opacity:0.5;">Нет заявок</div>';
+        return;
+    }
+
+    items.forEach(w => {
+        let badge = '<span class="status-badge st-pending">⏳ Ожидание</span>';
+        let actions = '';
+        
+        if(w.status === 'paid') badge = '<span class="status-badge st-paid">✅ Выплачено</span>';
+        if(w.status === 'rejected') badge = '<span class="status-badge st-rejected">❌ Отменено</span>';
+
+        if(w.status === 'pending') {
+            actions = `
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:15px; border-top:1px solid var(--glass-border); padding-top:15px;">
+                     <button class="btn" style="background:rgba(255,75,75,0.1); color:#ff4b4b; padding:8px; font-size:12px;" onclick="adminProcessWithdrawal(${w.id}, false)">Отклонить</button>
+                     <button class="btn" style="background:rgba(0,255,136,0.1); color:var(--accent-green); padding:8px; font-size:12px;" onclick="adminProcessWithdrawal(${w.id}, true)">Выплатить</button>
+                </div>
+            `;
+        }
+
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.style.padding = '15px';
+        div.style.marginBottom = '0';
+        div.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                    <div style="font-weight:800; font-size:16px; margin-bottom:5px;">${w.amount} ₽</div>
+                    <div style="font-size:12px; color:var(--text-dim);">${w.details}</div>
+                    <div style="font-size:10px; color:var(--text-dim); margin-top:4px;">${w.date}</div>
+                </div>
+                ${badge}
+            </div>
+            ${actions}
+        `;
+        list.appendChild(div);
+    });
+}
 
 window.adminDecision = async function(itemId, approved) {
     const item = state.moderation.find(i => i.id === itemId);
@@ -484,6 +752,8 @@ window.adminDecision = async function(itemId, approved) {
 
     if(approved) {
         state.user.rub += parseInt(item.price);
+        addHistory('earn', parseInt(item.price), `Задание: ${item.taskName}`);
+        addXP(parseInt(item.price));
         tg.showAlert(`✅ Отчет принят. Исполнителю начислено +${item.price} ₽`);
     } else {
         tg.showAlert('❌ Отчет отклонен.');
@@ -495,35 +765,73 @@ window.adminDecision = async function(itemId, approved) {
     renderAdmin(); 
     updateAdminBadge();
     
-    if(state.moderation.length === 0) closeModal();
+    if(state.moderation.length === 0 && state.withdrawals.length === 0) closeModal();
+};
+
+window.adminProcessWithdrawal = async function(id, approved) {
+    const w = state.withdrawals.find(x => x.id === id);
+    if(!w) return;
+
+    if(approved) {
+        w.status = 'paid';
+        tg.showAlert(`✅ Выплата ${w.amount}₽ подтверждена!`);
+    } else {
+        w.status = 'rejected';
+        // Refund logic
+        state.user.rub += w.amount;
+        addHistory('earn', w.amount, 'Возврат средств (Отмена вывода)');
+        tg.showAlert(`❌ Выплата отклонена. Средства возвращены.`);
+    }
+
+    await saveData();
+    render();
+    renderAdmin();
 };
 
 function updateAdminBadge() {
     const badge = document.getElementById('admin-badge');
     if(!badge) return;
+    // Count pending tasks
     const count = state.moderation.length;
-    badge.innerText = count;
-    badge.style.opacity = count > 0 ? '1' : '0';
+    // Optionally add pending withdrawals count
+    const pendingW = state.withdrawals.filter(w => w.status === 'pending').length;
+    
+    const total = count + pendingW;
+    badge.innerText = total;
+    badge.style.opacity = total > 0 ? '1' : '0';
 }
 
 window.recalc = function() {
     const typeSelect = document.getElementById('t-type');
+    const subtypeSelect = document.getElementById('t-tg-subtype');
+    const subtypeWrapper = document.getElementById('tg-subtype-wrapper');
+    const tgOptions = document.getElementById('tg-options');
+
     if (!typeSelect) return;
     
-    const p = parseInt(typeSelect.selectedOptions[0].dataset.p);
-    const q = parseInt(document.getElementById('t-qty').value || 0);
-    const cur = document.getElementById('t-cur').value;
     const typeVal = typeSelect.value;
-    
-    const tgOpts = document.getElementById('tg-options');
-    if(typeVal === 'tg') {
-        tgOpts.classList.remove('hidden');
+    let pricePerItem = 0;
+
+    if (typeVal === 'tg') {
+        subtypeWrapper.classList.remove('hidden');
+        tgOptions.classList.remove('hidden');
+        
+        // Get price from subtype
+        const stKey = subtypeSelect.value;
+        if (TG_TASK_TYPES[stKey]) {
+            pricePerItem = TG_TASK_TYPES[stKey].cost;
+        }
     } else {
-        tgOpts.classList.add('hidden');
+        subtypeWrapper.classList.add('hidden');
+        tgOptions.classList.add('hidden');
+        // Get price from main select
+        pricePerItem = parseInt(typeSelect.selectedOptions[0].dataset.p);
     }
 
-    const subtotal = p * q;
-    const totalRub = Math.ceil(subtotal * 1.15); 
+    const q = parseInt(document.getElementById('t-qty').value || 0);
+    const cur = document.getElementById('t-cur').value;
+    
+    const totalRub = pricePerItem * q;
     
     const el = document.getElementById('t-total');
     
@@ -553,51 +861,153 @@ window.toggleTheme = function() {
     if(tg.setHeaderColor) tg.setHeaderColor(isLight ? '#f2f4f7' : '#05070a');
 };
 
+// NAVIGATION & VIEW LOGIC
 window.showTab = function(t) {
     document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-    document.getElementById('tab-' + t).classList.add('active');
+    const navBtn = document.getElementById('tab-' + t);
+    if(navBtn) navBtn.classList.add('active');
+    
     document.getElementById('view-tasks').classList.toggle('hidden', t !== 'tasks');
+    document.getElementById('view-friends').classList.toggle('hidden', t !== 'friends');
     document.getElementById('view-profile').classList.toggle('hidden', t !== 'profile');
+    document.getElementById('view-history').classList.add('hidden'); // Ensure history is hidden when switching tabs
 };
 
+window.showHistory = function() {
+    // Hide all main tabs
+    document.getElementById('view-tasks').classList.add('hidden');
+    document.getElementById('view-friends').classList.add('hidden');
+    document.getElementById('view-profile').classList.add('hidden');
+    // Show history
+    document.getElementById('view-history').classList.remove('hidden');
+    renderHistory();
+};
+
+window.closeHistory = function() {
+    document.getElementById('view-history').classList.add('hidden');
+    // Return to profile
+    document.getElementById('view-profile').classList.remove('hidden');
+    document.getElementById('tab-profile').classList.add('active');
+};
+
+
 function render() {
+    // 1. Balance
     document.getElementById('u-bal-rub').innerText = Math.floor(state.user.rub).toLocaleString() + ' ₽';
     document.getElementById('u-bal-star').innerText = Math.floor(state.user.stars).toLocaleString() + ' ⭐';
+    
+    // 2. XP & Level
+    const xpPerLevel = 100;
+    const currentLevel = state.user.level;
+    const nextLevelXP = currentLevel * xpPerLevel;
+    const prevLevelXP = (currentLevel - 1) * xpPerLevel;
+    const xpInCurrentLevel = state.user.xp - prevLevelXP;
+    const xpNeededForNext = nextLevelXP - prevLevelXP;
+    const progressPct = Math.min(100, Math.max(0, (xpInCurrentLevel / xpNeededForNext) * 100));
 
+    document.getElementById('u-lvl-badge').innerText = `LVL ${currentLevel}`;
+    document.getElementById('u-xp-cur').innerText = `${state.user.xp} XP`;
+    document.getElementById('u-xp-next').innerText = `${nextLevelXP} XP`;
+    document.getElementById('u-xp-fill').style.width = `${progressPct}%`;
+
+
+    // 3. Tasks
     const box = document.getElementById('tasks-list'); 
-    if (!box) return;
-    
-    box.innerHTML = '';
-    const list = state.tasks.filter(t => state.filter === 'all' ? t.owner === 'other' : t.owner === 'me');
-    
-    if (list.length === 0) {
-        box.innerHTML = `
-            <div style="text-align:center; padding: 60px 20px; color: var(--text-dim); opacity: 0.6;" class="anim-entry">
-                <div style="font-size: 48px; margin-bottom: 15px; filter: grayscale(1);">📭</div>
-                <div style="font-weight:600;">Задач пока нет</div>
-                <div style="font-size:12px; margin-top:5px;">Заходите позже или создайте свою</div>
-            </div>
-        `;
-    } else {
-        list.forEach((t, index) => {
-            box.insertAdjacentHTML('beforeend', `
-                <div class="task-item anim-entry" style="animation-delay: ${0.05 * index}s">
-                    <div style="display:flex; align-items:center;">
-                        <div class="brand-box"><img src="${ASSETS[t.type]}" alt="${t.type}"></div>
-                        <div style="margin-left:15px;">
-                            <div style="font-weight:700;">${t.name}</div>
-                            <div style="color:var(--accent-cyan); font-weight:800; font-size:14px;">+${t.price} ₽</div>
+    if (box) {
+        box.innerHTML = '';
+        const list = state.tasks.filter(t => state.filter === 'all' ? t.owner === 'other' : t.owner === 'me');
+        
+        if (list.length === 0) {
+            box.innerHTML = `
+                <div style="text-align:center; padding: 60px 20px; color: var(--text-dim); opacity: 0.6;" class="anim-entry">
+                    <div style="font-size: 48px; margin-bottom: 15px; filter: grayscale(1);">📭</div>
+                    <div style="font-weight:600;">Задач пока нет</div>
+                    <div style="font-size:12px; margin-top:5px;">Заходите позже или создайте свою</div>
+                </div>
+            `;
+        } else {
+            list.forEach((t, index) => {
+                let icon = '';
+                // Resolve Icon
+                if (t.type === 'tg' && t.subType && TG_TASK_TYPES[t.subType]) {
+                    icon = TG_TASK_TYPES[t.subType].icon;
+                } else if (ASSETS[t.type]) {
+                    icon = `<img src="${ASSETS[t.type]}" style="width:100%; height:100%; object-fit:contain;">`;
+                } else {
+                    icon = '📄';
+                }
+
+                // Wrap text icon if needed
+                if(!icon.includes('<img')) {
+                    icon = `<div style="font-size:24px;">${icon}</div>`;
+                }
+
+                box.insertAdjacentHTML('beforeend', `
+                    <div class="task-item anim-entry" style="animation-delay: ${0.05 * index}s">
+                        <div style="display:flex; align-items:center;">
+                            <div class="brand-box">${icon}</div>
+                            <div style="margin-left:15px;">
+                                <div style="font-weight:700;">${t.name}</div>
+                                <div style="color:var(--accent-cyan); font-weight:800; font-size:14px;">+${t.price} ₽</div>
+                            </div>
                         </div>
+                        <button class="btn btn-action" onclick="handleTask(this, '${t.owner}', ${t.id})">
+                            ${t.owner === 'me' ? 'Удалить' : 'Выполнить'}
+                        </button>
                     </div>
-                    <button class="btn btn-action" onclick="handleTask(this, '${t.owner}', ${t.id})">
-                        ${t.owner === 'me' ? 'Удалить' : 'Выполнить'}
-                    </button>
+                `);
+            });
+        }
+    }
+
+    // 4. Referrals
+    renderReferrals();
+}
+window.render = render;
+
+function renderReferrals() {
+    const refCount = document.getElementById('ref-count');
+    const refEarn = document.getElementById('ref-earn');
+    const leaderList = document.getElementById('leaderboard-list');
+
+    if(refCount) refCount.innerText = state.referrals.count;
+    if(refEarn) refEarn.innerText = state.referrals.earned + ' ₽';
+    
+    // Invite Link
+    const uid = getTgUser()?.id || '12345';
+    const inviteLink = `t.me/ReviewCashBot?start=${uid}`;
+    const linkEl = document.getElementById('invite-link');
+    if(linkEl) linkEl.innerText = inviteLink;
+
+    if(leaderList) {
+        leaderList.innerHTML = '';
+        LEADERBOARD_MOCK.forEach((u, i) => {
+            const isGold = i < 3;
+            leaderList.insertAdjacentHTML('beforeend', `
+                <div class="leader-row ${isGold ? 'gold' : ''}">
+                    <div class="rank-num">${i+1}</div>
+                    <div style="flex:1; font-weight:700;">${u.name}</div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:800; font-size:13px; color:var(--accent-cyan);">${u.earned.toLocaleString()} ₽</div>
+                        <div style="font-size:10px; color:var(--text-dim);">${u.count} друзей</div>
+                    </div>
                 </div>
             `);
         });
     }
 }
-window.render = render;
+
+window.copyInviteLink = function() {
+    const uid = getTgUser()?.id || '12345';
+    const inviteLink = `https://t.me/ReviewCashBot?start=${uid}`;
+    navigator.clipboard.writeText(inviteLink).then(() => tg.showAlert('🔗 Ссылка скопирована!'));
+};
+
+window.shareInvite = function() {
+    const uid = getTgUser()?.id || '12345';
+    const inviteLink = `https://t.me/ReviewCashBot?start=${uid}`;
+    tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=Зарабатывай на заданиях вместе со мной!`);
+};
 
 window.setFilter = function(f) {
     state.filter = f;
@@ -646,20 +1056,61 @@ window.confirmTBank = function() {
     tg.sendData(JSON.stringify(payload));
 };
 
+// WITHDRAWAL LOGIC
 window.requestWithdraw = function() {
     const amount = document.getElementById('w-amount').value;
     const details = document.getElementById('w-details').value;
     
     if(!amount || !details) return tg.showAlert('Заполните все поля');
+    if(amount < 300) return tg.showAlert('Минимальная сумма: 300 ₽'); // Updated to 300
     if(amount > state.user.rub) return tg.showAlert('Недостаточно средств на балансе');
 
-    const payload = { action: 'withdraw_request', amount: amount, details: details };
     state.user.rub -= parseInt(amount);
+    
+    const wdRequest = {
+        id: Date.now(),
+        amount: parseInt(amount),
+        details: details,
+        status: 'pending', // pending, paid, rejected
+        date: new Date().toLocaleDateString()
+    };
+    
+    state.withdrawals.unshift(wdRequest);
+    addHistory('withdraw', amount, 'Заявка на вывод');
+
     saveData();
     render();
-    closeModal();
-    tg.sendData(JSON.stringify(payload));
+    renderWithdrawals();
+    tg.showAlert('✅ Заявка создана! Ожидайте обработки.');
 };
+
+function renderWithdrawals() {
+    const list = document.getElementById('withdrawals-list');
+    if(!list) return;
+    list.innerHTML = '';
+    
+    if(state.withdrawals.length === 0) {
+        list.innerHTML = '<div style="font-size:12px; color:var(--text-dim); text-align:center;">Нет активных заявок</div>';
+        return;
+    }
+    
+    state.withdrawals.forEach(w => {
+        let stClass = 'st-pending';
+        let stText = 'Ожидание';
+        if(w.status === 'paid') { stClass = 'st-paid'; stText = 'Выплачено'; }
+        if(w.status === 'rejected') { stClass = 'st-rejected'; stText = 'Отклонено'; }
+
+        list.insertAdjacentHTML('beforeend', `
+            <div style="background:var(--glass); padding:10px; border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="font-weight:700; font-size:13px;">${w.amount} ₽</div>
+                    <div style="font-size:10px; color:var(--text-dim);">${w.date}</div>
+                </div>
+                <div class="status-badge ${stClass}">${stText}</div>
+            </div>
+        `);
+    });
+}
 
 window.openModal = function(id) { 
     document.getElementById(id).classList.add('active'); 
@@ -671,8 +1122,12 @@ window.openModal = function(id) {
         isLinkValid = false;
         recalc();
     }
+    if(id === 'm-withdraw') {
+        renderWithdrawals();
+    }
 };
 
 window.closeModal = function() { 
     document.querySelectorAll('.overlay').forEach(o => o.classList.remove('active')); 
 };
+
