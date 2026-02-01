@@ -10,13 +10,14 @@ const MockTelegram = {
             console.log('TG: sendData called with', data); 
             alert('DEV MODE: Data sent to bot:\n' + data + '\n\nIn real app, this closes the window.'); 
         },
+        ready: () => console.log('TG: Ready'),
         initDataUnsafe: {
             user: {
                 id: 123456, // MOCK USER
                 username: 'miniapp_user',
                 first_name: 'Alex',
                 last_name: 'Test',
-                photo_url: 'https://cdn-icons-png.flaticon.com/512/147/147142.png' // Mock avatar
+                // photo_url intentionally left undefined to test fallback
             }
         }
     }
@@ -58,20 +59,25 @@ let selectedProofFile = null;
 
 // Initialization
 document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        if(tg.expand) tg.expand();
-    } catch(e) { console.log('Expand error', e); }
+    // --- 1. INITIALIZE TELEGRAM ---
+    if (window.Telegram && window.Telegram.WebApp) {
+        if (window.Telegram.WebApp.ready) window.Telegram.WebApp.ready();
+        if (window.Telegram.WebApp.expand) window.Telegram.WebApp.expand();
+    } else {
+        // Dev mode fallback
+        MockTelegram.WebApp.expand();
+    }
     
-    // --- 1. SETUP UI IMMEDIATELY (AVATAR LOGIC) ---
+    // --- 2. SETUP UI IMMEDIATELY (AVATAR LOGIC) ---
     setupProfileUI();
 
-    // --- 2. LOAD DATA ---
+    // --- 3. LOAD DATA ---
     try { await loadData(); } catch(e) { console.error('Data load error', e); }
     
-    // --- 3. CHECK ADMIN RIGHTS ---
+    // --- 4. CHECK ADMIN RIGHTS ---
     checkAdmin();
 
-    // --- 4. RENDER & FINALIZE ---
+    // --- 5. RENDER & FINALIZE ---
     render();
     updateAdminBadge();
     
@@ -129,7 +135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// 🔥 SIMPLIFIED AVATAR LOGIC AS REQUESTED
+// 🔥 ROBUST AVATAR & NAME LOGIC (FIXED)
 function setupProfileUI() {
     try {
         const user = getTgUser();
@@ -140,24 +146,33 @@ function setupProfileUI() {
         const headerName = document.getElementById('header-name');
         const profileName = document.getElementById('u-name');
         
-        // 2. Determine Display Name
+        // 2. Determine Display Name (Safe Fallback)
         let displayName = 'Гость';
-        let seed = 'G'; // For fallback avatar
+        let seed = 'G'; // For fallback avatar generation
 
         if (user) {
-            displayName = user.username 
-                ? '@' + user.username 
-                : `${user.first_name || ''} ${user.last_name || ''}`.trim();
+            if (user.username) {
+                displayName = '@' + user.username;
+            } else if (user.first_name || user.last_name) {
+                displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+            } else {
+                displayName = 'Пользователь';
+            }
             
-            if (!displayName) displayName = 'Пользователь';
-            seed = user.first_name || 'U';
+            // Generate seed for avatar from any available name part
+            seed = user.first_name || user.username || 'U';
         }
 
-        // 3. Determine Avatar URL (Direct from Telegram)
-        // If user.photo_url exists, use it. Otherwise use dynamic fallback.
-        let photoSrc = (user && user.photo_url) 
-            ? user.photo_url 
-            : `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=128&bold=true`;
+        // 3. Determine Avatar URL (Strict Check)
+        // Telegram user.photo_url is often missing or undefined.
+        // We only use it if it's a valid string starting with http.
+        let photoSrc;
+        if (user && typeof user.photo_url === 'string' && user.photo_url.startsWith('http')) {
+            photoSrc = user.photo_url;
+        } else {
+            // Fallback: Generate avatar based on name seed
+            photoSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=128&bold=true`;
+        }
 
         // 4. Update UI
         if (headerName) headerName.innerText = displayName;
@@ -174,7 +189,7 @@ function setupProfileUI() {
             profileAvatar.onerror = () => profileAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=128&bold=true`;
         }
 
-        console.log('User Profile Loaded:', { displayName, photoSrc });
+        console.log('User Profile Loaded:', { displayName, hasPhoto: !!(user && user.photo_url) });
 
     } catch(e) {
         console.error('Profile Setup Error:', e);
