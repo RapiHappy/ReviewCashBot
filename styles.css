@@ -174,16 +174,6 @@ body {
 .amt-green { color: var(--accent-green); }
 .amt-red { color: var(--accent-red); }
 
-/* --- LEADERBOARD --- */
-.leader-row {
-    display: flex; align-items: center; padding: 12px; 
-    background: var(--glass); margin-bottom: 8px; border-radius: 16px;
-    border: 1px solid transparent;
-}
-.leader-row.gold { border-color: var(--accent-gold); background: rgba(255, 204, 0, 0.05); }
-.rank-num { width: 30px; font-weight: 800; font-size: 14px; color: var(--text-dim); }
-.gold .rank-num { color: var(--accent-gold); font-size: 18px; }
-
 /* --- STATUS BADGES --- */
 .status-badge {
     font-size: 10px; padding: 4px 8px; border-radius: 6px; font-weight: 800;
