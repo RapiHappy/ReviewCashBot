@@ -14,9 +14,9 @@ const MockTelegram = {
             user: {
                 id: 123456, // MOCK USER
                 username: 'miniapp_user',
-                first_name: 'Test',
-                last_name: 'User',
-                photo_url: ''
+                first_name: 'Alex',
+                last_name: 'Test',
+                photo_url: 'https://cdn-icons-png.flaticon.com/512/147/147142.png' // Mock avatar
             }
         }
     }
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(tg.expand) tg.expand();
     } catch(e) { console.log('Expand error', e); }
     
-    // --- 1. SETUP UI IMMEDIATELY ---
+    // --- 1. SETUP UI IMMEDIATELY (AVATAR LOGIC) ---
     setupProfileUI();
 
     // --- 2. LOAD DATA ---
@@ -129,54 +129,55 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+// 🔥 SIMPLIFIED AVATAR LOGIC AS REQUESTED
 function setupProfileUI() {
     try {
-        const u = getTgUser();
+        const user = getTgUser();
         
-        // Define display name
-        let displayName = 'Гость';
-        let seed = 'G';
-        
-        if (u) {
-            displayName = u.username 
-                ? '@' + u.username 
-                : `${u.first_name || ''} ${u.last_name || ''}`.trim();
-            if (!displayName) displayName = 'Пользователь';
-            seed = u.first_name || 'U';
-        }
-
-        // Define Photo URL
-        let photoSrc = (u && u.photo_url) ? u.photo_url : null;
-        if (!photoSrc) {
-            photoSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=128&bold=true`;
-        }
-
-        // UPDATE PROFILE TAB
-        const nameEl = document.getElementById('u-name');
-        const picEl = document.getElementById('u-pic');
-        if (nameEl) nameEl.innerText = displayName;
-        if (picEl) {
-            picEl.src = photoSrc;
-            picEl.onerror = function() {
-                this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=128&bold=true`;
-            };
-        }
-
-        // UPDATE HEADER MINI PROFILE
+        // 1. Get Elements
+        const headerAvatar = document.getElementById('header-avatar');
+        const profileAvatar = document.getElementById('u-pic');
         const headerName = document.getElementById('header-name');
-        const headerPic = document.getElementById('header-avatar');
-        if (headerName) headerName.innerText = displayName;
-        if (headerPic) {
-            headerPic.src = photoSrc;
-            headerPic.onerror = function() {
-                this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=64&bold=true`;
-            };
+        const profileName = document.getElementById('u-name');
+        
+        // 2. Determine Display Name
+        let displayName = 'Гость';
+        let seed = 'G'; // For fallback avatar
+
+        if (user) {
+            displayName = user.username 
+                ? '@' + user.username 
+                : `${user.first_name || ''} ${user.last_name || ''}`.trim();
+            
+            if (!displayName) displayName = 'Пользователь';
+            seed = user.first_name || 'U';
         }
+
+        // 3. Determine Avatar URL (Direct from Telegram)
+        // If user.photo_url exists, use it. Otherwise use dynamic fallback.
+        let photoSrc = (user && user.photo_url) 
+            ? user.photo_url 
+            : `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=128&bold=true`;
+
+        // 4. Update UI
+        if (headerName) headerName.innerText = displayName;
+        if (profileName) profileName.innerText = displayName;
+
+        if (headerAvatar) {
+            headerAvatar.src = photoSrc;
+            // Backup error handler just in case URL expires or breaks
+            headerAvatar.onerror = () => headerAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=128&bold=true`;
+        }
+        
+        if (profileAvatar) {
+            profileAvatar.src = photoSrc;
+            profileAvatar.onerror = () => profileAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(seed)}&background=random&color=fff&size=128&bold=true`;
+        }
+
+        console.log('User Profile Loaded:', { displayName, photoSrc });
 
     } catch(e) {
         console.error('Profile Setup Error:', e);
-        // Fallback in case of crash
-        document.getElementById('u-name').innerText = 'Ошибка';
     }
 }
 
