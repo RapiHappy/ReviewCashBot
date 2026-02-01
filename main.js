@@ -80,15 +80,6 @@ let state = {
     limits: {} // Local cache of limits
 };
 
-// Fake Leaderboard Data
-const LEADERBOARD_MOCK = [
-    { name: 'AlexCrypto', count: 142, earned: 45000 },
-    { name: 'Elena_V', count: 98, earned: 21500 },
-    { name: 'MaxPower', count: 76, earned: 18000 },
-    { name: 'Dimon99', count: 45, earned: 9800 },
-    { name: 'User_772', count: 32, earned: 5400 }
-];
-
 let isLinkValid = false;
 let linkCheckTimer = null;
 let selectedProofFile = null;
@@ -968,7 +959,7 @@ window.render = render;
 function renderReferrals() {
     const refCount = document.getElementById('ref-count');
     const refEarn = document.getElementById('ref-earn');
-    const leaderList = document.getElementById('leaderboard-list');
+    // Leaderboard logic removed
 
     if(refCount) refCount.innerText = state.referrals.count;
     if(refEarn) refEarn.innerText = state.referrals.earned + ' ₽';
@@ -978,23 +969,6 @@ function renderReferrals() {
     const inviteLink = `t.me/ReviewCashBot?start=${uid}`;
     const linkEl = document.getElementById('invite-link');
     if(linkEl) linkEl.innerText = inviteLink;
-
-    if(leaderList) {
-        leaderList.innerHTML = '';
-        LEADERBOARD_MOCK.forEach((u, i) => {
-            const isGold = i < 3;
-            leaderList.insertAdjacentHTML('beforeend', `
-                <div class="leader-row ${isGold ? 'gold' : ''}">
-                    <div class="rank-num">${i+1}</div>
-                    <div style="flex:1; font-weight:700;">${u.name}</div>
-                    <div style="text-align:right;">
-                        <div style="font-weight:800; font-size:13px; color:var(--accent-cyan);">${u.earned.toLocaleString()} ₽</div>
-                        <div style="font-size:10px; color:var(--text-dim);">${u.count} друзей</div>
-                    </div>
-                </div>
-            `);
-        });
-    }
 }
 
 window.copyInviteLink = function() {
@@ -1130,4 +1104,5 @@ window.openModal = function(id) {
 window.closeModal = function() { 
     document.querySelectorAll('.overlay').forEach(o => o.classList.remove('active')); 
 };
+
 
