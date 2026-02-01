@@ -9,6 +9,8 @@
   --accent-cyan: #00eaff;
   --accent-gold: #ffcc00;
   --accent-green: #00ff88;
+  --accent-red: #ff4b4b;
+  --accent-purple: #b026ff;
   --nav-bg: rgba(15, 20, 26, 0.95);
   --shadow: rgba(0,0,0,0.5);
 }
@@ -80,17 +82,38 @@ body {
 }
 
 /* --- PROFILE & BALANCE --- */
-.profile-header { display: flex; align-items: center; gap: 20px; }
+.profile-header { display: flex; align-items: center; gap: 20px; position: relative;}
 .avatar-ring {
   width: 80px; height: 80px; border-radius: 50%; padding: 3px;
   background: linear-gradient(135deg, var(--accent-cyan), var(--accent-gold));
   display: flex; align-items: center; justify-content: center;
+  position: relative;
 }
 .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 3px solid var(--bg); }
 
-.balance-stack { display: flex; flex-direction: column; gap: 2px; }
+.level-badge {
+    position: absolute; bottom: -5px; right: -5px;
+    background: var(--accent-purple); color: #fff;
+    font-size: 11px; font-weight: 800; padding: 2px 8px;
+    border-radius: 10px; border: 2px solid var(--bg);
+}
+
+.balance-stack { display: flex; flex-direction: column; gap: 2px; flex: 1; }
 .bal-rub { font-size: 32px; font-weight: 800; color: var(--accent-cyan); letter-spacing: -1px; }
 .bal-star { font-size: 18px; font-weight: 700; color: var(--accent-gold); display: flex; align-items: center; gap: 6px; }
+
+/* XP BAR */
+.xp-track {
+    margin-top: 15px; width: 100%; height: 6px; background: var(--glass);
+    border-radius: 10px; overflow: hidden; position: relative;
+}
+.xp-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan));
+    width: 0%; transition: width 0.5s ease;
+}
+.xp-text {
+    font-size: 11px; color: var(--text-dim); margin-top: 5px; display: flex; justify-content: space-between;
+}
 
 /* --- FAB BUTTON --- */
 .fab-wrap { position: fixed; right: 24px; bottom: 100px; z-index: 1000; }
@@ -111,6 +134,7 @@ body {
 }
 .btn-main { background: linear-gradient(135deg, var(--accent-cyan), #0088ff); color: #fff; }
 .btn-secondary { background: var(--glass); color: var(--text-main); border: 1px solid var(--glass-border); }
+.btn-sm { padding: 10px 16px; font-size: 12px; border-radius: 14px; }
 
 .btn-action {
     background: rgba(0, 234, 255, 0.1); color: var(--accent-cyan);
@@ -132,6 +156,43 @@ body {
 }
 .brand-box img { width: 100%; height: 100%; object-fit: contain; }
 
+/* --- HISTORY & LISTS --- */
+.list-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 15px; border-bottom: 1px solid var(--glass-border);
+}
+.list-item:last-child { border-bottom: none; }
+.list-icon {
+    width: 40px; height: 40px; border-radius: 12px; 
+    background: var(--glass); display: flex; align-items: center; justify-content: center;
+    font-size: 18px; margin-right: 15px; flex-shrink: 0;
+}
+.list-meta { flex: 1; }
+.list-title { font-weight: 700; font-size: 14px; margin-bottom: 3px; }
+.list-date { font-size: 11px; color: var(--text-dim); }
+.list-amount { font-weight: 800; font-size: 14px; }
+.amt-green { color: var(--accent-green); }
+.amt-red { color: var(--accent-red); }
+
+/* --- LEADERBOARD --- */
+.leader-row {
+    display: flex; align-items: center; padding: 12px; 
+    background: var(--glass); margin-bottom: 8px; border-radius: 16px;
+    border: 1px solid transparent;
+}
+.leader-row.gold { border-color: var(--accent-gold); background: rgba(255, 204, 0, 0.05); }
+.rank-num { width: 30px; font-weight: 800; font-size: 14px; color: var(--text-dim); }
+.gold .rank-num { color: var(--accent-gold); font-size: 18px; }
+
+/* --- STATUS BADGES --- */
+.status-badge {
+    font-size: 10px; padding: 4px 8px; border-radius: 6px; font-weight: 800;
+    text-transform: uppercase;
+}
+.st-pending { background: rgba(255, 204, 0, 0.1); color: var(--accent-gold); }
+.st-paid { background: rgba(0, 255, 136, 0.1); color: var(--accent-green); }
+.st-rejected { background: rgba(255, 75, 75, 0.1); color: var(--accent-red); }
+
 /* --- NAVIGATION --- */
 .nav-bar {
   position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
@@ -140,7 +201,7 @@ body {
   display: flex; gap: 5px; z-index: 1000;
   box-shadow: 0 10px 40px rgba(0,0,0,0.3);
 }
-.nav-item { padding: 14px 34px; border-radius: 26px; color: var(--text-dim); font-weight: 700; cursor: pointer; transition: 0.3s; }
+.nav-item { padding: 14px 24px; border-radius: 26px; color: var(--text-dim); font-weight: 700; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 6px; font-size: 13px; }
 .nav-item.active { background: var(--text-main); color: var(--bg); }
 
 /* --- MODALS --- */
@@ -159,6 +220,7 @@ body {
   padding: 35px 24px 60px; color: var(--text-main); border-top: 1px solid var(--glass-border);
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   max-width: 500px; margin: 0 auto;
+  max-height: 85vh; overflow-y: auto;
 }
 input, select, textarea {
   width: 100%; background: var(--glass); border: 1px solid var(--glass-border);
@@ -225,3 +287,15 @@ option { background-color: var(--card-bg); color: var(--text-main); }
     display: flex; align-items: center; justify-content: center; gap: 8px;
 }
 .file-upload-btn:active { background: rgba(0, 234, 255, 0.1); }
+
+/* --- ADMIN PANEL TABS --- */
+.admin-tabs {
+  display: flex; background: var(--glass); padding: 4px; border-radius: 18px;
+  margin-bottom: 20px; border: 1px solid var(--glass-border);
+}
+.admin-tab {
+  flex: 1; text-align: center; padding: 10px; border-radius: 14px;
+  font-size: 12px; font-weight: 700; cursor: pointer; transition: 0.2s;
+  color: var(--text-dim);
+}
+.admin-tab.active { background: var(--card-bg); color: var(--text-main); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
