@@ -1,3 +1,19 @@
+// при старте
+const initData = tg.initData || '';
+const u = getTgUser();
+
+const device_hash = await miniappsAI.storage.getItem('device_hash') 
+  || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
+await miniappsAI.storage.setItem('device_hash', device_hash);
+
+tg.sendData(JSON.stringify({
+  action: "init",
+  initData: initData,
+  device_hash: device_hash,
+  photo_url: u?.photo_url || ""
+}));
+
+
 // Mock Telegram WebApp for non-Telegram environments
 const MockTelegram = {
     WebApp: {
