@@ -1,19 +1,3 @@
-// при старте
-const initData = tg.initData || '';
-const u = getTgUser();
-
-const device_hash = await miniappsAI.storage.getItem('device_hash') 
-  || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
-await miniappsAI.storage.setItem('device_hash', device_hash);
-
-tg.sendData(JSON.stringify({
-  action: "init",
-  initData: initData,
-  device_hash: device_hash,
-  photo_url: u?.photo_url || ""
-}));
-
-
 // Mock Telegram WebApp for non-Telegram environments
 const MockTelegram = {
     WebApp: {
@@ -27,6 +11,7 @@ const MockTelegram = {
             alert('DEV MODE: Data sent to bot:\n' + data + '\n\nIn real app, this closes the window.'); 
         },
         ready: () => console.log('TG: Ready'),
+        initData: '',
         initDataUnsafe: {
             user: {
                 id: 123456, // MOCK USER
@@ -48,6 +33,53 @@ function getTgUser() {
 }
 
 const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : MockTelegram.WebApp;
+
+// --- API LAYER (Mini App через БОТА: initData) ---
+const API = window.location.origin; // если миниапп и API на одном домене
+
+function tgInitData() {
+    // Telegram передает строку initData (для проверки подписи на сервере)
+    return (window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.initData === 'string')
+        ? window.Telegram.WebApp.initData
+        : "";
+}
+
+function getDeviceHash() {
+    let v = localStorage.getItem("device_hash");
+    if (!v) {
+        v = "dev_" + Math.random().toString(16).slice(2) + Date.now().toString(16);
+        localStorage.setItem("device_hash", v);
+    }
+    return v;
+}
+
+async function apiPost(path, data) {
+    const res = await fetch(API + path, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Tg-InitData": tgInitData()
+        },
+        body: JSON.stringify({ ...(data || {}), device_hash: getDeviceHash() })
+    });
+
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok || j.ok === false) {
+        throw new Error(j.error || ("HTTP " + res.status));
+    }
+    return j;
+}
+
+
+
+// Fallback storage (чтобы старые куски UI не падали в dev/браузере)
+const miniappsAI = window.miniappsAI || {
+    storage: {
+        getItem: async (k) => localStorage.getItem(k),
+        setItem: async (k, v) => localStorage.setItem(k, v)
+    }
+};
+
 
 // --- CONFIGURATION ---
 const ADMIN_IDS = [6482440657, 123456]; 
@@ -87,8 +119,10 @@ let state = {
     },
     tasks: [],
     moderation: [],
-    history: [],      
+    history: [],
+  ops: [],      
     withdrawals: [],  
+    adminWithdrawals: [],
     referrals: {      
         count: 0,
         earned: 0
@@ -102,7 +136,7 @@ let selectedProofFile = null;
 let activeAdminTab = 'proofs';
 
 // Initialization
-document.addEventListener('DOMContentLoaded', async () => {
+async function initApp() {
     if (window.Telegram && window.Telegram.WebApp) {
         if (window.Telegram.WebApp.ready) window.Telegram.WebApp.ready();
         if (window.Telegram.WebApp.expand) window.Telegram.WebApp.expand();
@@ -116,6 +150,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try { await loadData(); } catch(e) { console.error('Data load error', e); }
     
     checkAdmin();
+    try { await loadAdminData(); } catch(e) { console.error("Admin load error", e); }
     checkLevelUp(); // Check if initial level is correct
 
     render();
@@ -174,6 +209,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Initial recalc for modal
     recalc();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    initApp().catch(console.error);
 });
 
 function populateTgTypes() {
@@ -242,50 +281,86 @@ function checkAdmin() {
 }
 
 async function loadData() {
+    const r = await apiPost("/api/sync", {});
+
+    // баланс
+    state.user.rub = Number((r.balance && r.balance.rub_balance) || 0);
+    state.user.stars = Number((r.balance && r.balance.stars_balance) || 0);
+
+    // (опционально) прогресс/левел, если сервер отдаёт
+    if (r.balance && typeof r.balance.xp !== 'undefined') state.user.xp = Number(r.balance.xp || 0);
+    if (r.balance && typeof r.balance.level !== 'undefined') state.user.level = Number(r.balance.level || 1);
+
+    // таски (нормализуем поля под текущий UI)
+    const myId = Number(getTgUser()?.id || 0);
+    state.tasks = (r.tasks || []).map(t => {
+        const ownerId = Number(t.owner_id || t.user_id || 0);
+        const owner = t.owner || (ownerId && myId && ownerId === myId ? 'me' : 'other');
+
+        return {
+            id: t.id,
+            type: t.type,
+            subType: t.sub_type || t.subType || null,
+            name: t.title || t.name || 'Задание',
+            price: Number(t.reward_rub || t.reward || t.price || 0),
+            owner,
+            checkType: t.check_type || t.checkType || (t.type === 'tg' ? 'auto' : 'manual'),
+            target: t.target_url || t.target || '',
+            text: t.instructions || t.text || '',
+            qty: t.qty_total || t.qty || 1
+        };
+    });
+
+    // выводы (отдельным запросом)
     try {
-        const storedUser = await miniappsAI.storage.getItem('userBalance');
-        if (storedUser) {
-            state.user = JSON.parse(storedUser);
-            if(typeof state.user.xp === 'undefined') state.user.xp = 0;
-            if(typeof state.user.level === 'undefined') state.user.level = 1;
-        } else {
-            state.user = { rub: 500, stars: 10, xp: 0, level: 1 }; 
-        }
+        const w = await apiPost("/api/withdraw/list", {});
+        state.withdrawals = w.withdrawals || [];
+    } catch (e) {
+        console.warn("withdraw list error", e);
+        state.withdrawals = state.withdrawals || [];
+    }
+}
 
-        const storedTasks = await miniappsAI.storage.getItem('tasksList');
-        if (storedTasks) state.tasks = JSON.parse(storedTasks);
-        else {
-            // Updated mock tasks with new types
-            state.tasks = [
-                { 
-                    id: 1, type: 'tg', subType: 'tg_sub', name: 'Подписка на канал', price: 15, owner: 'other', checkType: 'auto',
-                    target: 'https://t.me/telegram', text: 'Подпишись на официальный канал новостей.'
-                },
-                { 
-                    id: 2, type: 'ya', name: 'Отзыв Яндекс Карты', price: 120, owner: 'other', checkType: 'manual',
-                    target: 'https://yandex.ru/maps', text: 'Поставьте 5 звезд и напишите про вежливый персонал.'
-                },
-                { 
-                    id: 3, type: 'tg', subType: 'tg_poll', name: 'Участие в опросе', price: 7, owner: 'other', checkType: 'auto',
-                    target: 'https://t.me/durov', text: 'Проголосуйте в последнем опросе.'
-                }
-            ];
-        }
 
-        const storedMod = await miniappsAI.storage.getItem('adminQueue');
-        if (storedMod) state.moderation = JSON.parse(storedMod);
+// --- ADMIN DATA (очередь модерации/выводов) ---
+async function loadAdminData() {
+    const u = getTgUser();
+    if (!u || !u.id || !ADMIN_IDS.includes(Number(u.id))) return;
 
-        const storedHist = await miniappsAI.storage.getItem('userHistory');
-        if (storedHist) state.history = JSON.parse(storedHist);
+    // 1) Очередь отчетов (proofs) на модерацию
+    try {
+        const p = await apiPost("/api/admin/proof/list", {});
+        const proofs = (p && (p.proofs || p.items || p.queue)) || [];
+        state.moderation = proofs.map(x => ({
+            id: x.id ?? x.proof_id ?? x.task_submit_id,
+            taskName: x.task_title ?? x.taskName ?? (x.task && (x.task.title || x.task.name)) ?? 'Задание',
+            timestamp: x.created_at ?? x.timestamp ?? x.date ?? '',
+            workerName: x.worker_username ?? x.workerName ?? (x.user && (x.user.username || x.user.name)) ?? (x.tg_username || '—'),
+            targetUrl: x.target_url ?? x.targetUrl ?? x.proof_url ?? '',
+            screenshotUrl: x.screenshot_url ?? x.screenshotUrl ?? x.proof_url ?? '',
+            price: x.reward_rub ?? x.price ?? x.amount_rub ?? 0,
+            raw: x
+        })).filter(x => x.id != null);
+    } catch (e) {
+        console.error('admin proofs load error', e);
+        // не падаем
+    }
 
-        const storedWd = await miniappsAI.storage.getItem('withdrawals');
-        if (storedWd) state.withdrawals = JSON.parse(storedWd);
-
-        // Load Limits
-        const storedLimits = await miniappsAI.storage.getItem('taskLimitData');
-        if(storedLimits) state.limits = JSON.parse(storedLimits);
-
-    } catch (e) { console.error('Data load error:', e); }
+    // 2) Очередь заявок на вывод (для админа)
+    try {
+        const w = await apiPost("/api/admin/withdraw/list", {});
+        const withdrawals = (w && (w.withdrawals || w.items || w.list)) || [];
+        state.adminWithdrawals = withdrawals.map(x => ({
+            id: x.id ?? x.withdraw_id,
+            amount: Number(x.amount_rub ?? x.amount ?? 0),
+            details: x.details ?? x.requisites ?? x.wallet ?? '',
+            date: x.created_at ?? x.date ?? '',
+            status: x.status ?? 'pending',
+            raw: x
+        })).filter(x => x.id != null);
+    } catch (e) {
+        console.error('admin withdrawals load error', e);
+    }
 }
 
 async function saveData() {
@@ -341,29 +416,90 @@ function renderHistory() {
     const list = document.getElementById('history-list');
     if(!list) return;
     list.innerHTML = '';
-    
-    if(state.history.length === 0) {
+
+    const items = (Array.isArray(state.ops) && state.ops.length) ? state.ops : (state.history || []);
+    if(items.length === 0) {
         list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-dim);">История пуста</div>';
         return;
     }
 
-    state.history.forEach(item => {
-        let icon = '📝';
-        let colorClass = '';
-        let sign = '';
+    const fmtDate = (v) => {
+        if (!v) return '';
+        try {
+            const d = new Date(v);
+            if (isNaN(d.getTime())) return String(v);
+            return d.toLocaleString('ru-RU', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+        } catch { return String(v); }
+    };
 
-        if(item.type === 'earn') { icon = '💰'; colorClass = 'amt-green'; sign = '+'; }
-        else if(item.type === 'spend') { icon = '💸'; colorClass = 'amt-red'; sign = '-'; }
-        else if(item.type === 'withdraw') { icon = '🏦'; colorClass = 'amt-red'; sign = '-'; }
+    const providerTitle = (p) => {
+        if (!p) return 'Пополнение';
+        if (p === 'tbank') return 'Пополнение (T-Bank)';
+        if (p === 'cryptobot') return 'Пополнение (CryptoBot)';
+        if (p === 'stars') return 'Пополнение (Stars)';
+        return 'Пополнение';
+    };
+
+    items.forEach(item => {
+        // поддержка старого фейкового формата истории
+        if (item.type) {
+            let icon = '📝';
+            let colorClass = '';
+            let sign = '';
+
+            if(item.type === 'earn') { icon = '💰'; colorClass = 'amt-green'; sign = '+'; }
+            else if(item.type === 'spend') { icon = '💸'; colorClass = 'amt-red'; sign = '-'; }
+            else if(item.type === 'withdraw') { icon = '🏦'; colorClass = 'amt-red'; sign = '-'; }
+
+            list.insertAdjacentHTML('beforeend', `
+                <div class="list-item">
+                    <div class="list-icon">${icon}</div>
+                    <div class="list-meta">
+                        <div class="list-title">${item.desc}</div>
+                        <div class="list-date">${item.date}</div>
+                    </div>
+                    <div class="list-amount ${colorClass}">${sign}${item.amount} ₽</div>
+                </div>
+            `);
+            return;
+        }
+
+        const kind = item.kind;
+        const status = String(item.status || 'pending');
+        const amount = Number(item.amount_rub || 0);
+        const dateText = fmtDate(item.created_at);
+
+        let icon = '🧾';
+        let title = 'Операция';
+        let sign = '';
+        let colorClass = '';
+
+        if (kind === 'payment') {
+            // платежи показываем как "+"
+            title = providerTitle(item.provider);
+            sign = '+';
+            colorClass = (status === 'paid') ? 'amt-green' : '';
+            icon = (status === 'paid') ? '✅' : '⏳';
+        } else if (kind === 'withdrawal') {
+            title = 'Вывод средств';
+            sign = '-';
+            colorClass = 'amt-red';
+            icon = (status === 'paid') ? '✅' : (status === 'rejected' ? '❌' : '⏳');
+        }
+
+        const statusText =
+            status === 'paid' ? 'Выполнено' :
+            status === 'rejected' ? 'Отклонено' :
+            'Ожидает';
 
         list.insertAdjacentHTML('beforeend', `
             <div class="list-item">
                 <div class="list-icon">${icon}</div>
                 <div class="list-meta">
-                    <div class="list-title">${item.desc}</div>
-                    <div class="list-date">${item.date}</div>
+                    <div class="list-title">${title} <span style="font-size:11px; color:var(--text-dim);">• ${statusText}</span></div>
+                    <div class="list-date">${dateText}</div>
                 </div>
-                <div class="list-amount ${colorClass}">${sign}${item.amount} ₽</div>
+                <div class="list-amount ${colorClass}">${sign}${amount.toFixed(0)} ₽</div>
             </div>
         `);
     });
@@ -397,14 +533,13 @@ window.createTask = async function() {
     const textEl = document.getElementById('t-text');
 
     const type = typeEl.value;
-    const qty = parseInt(qtyEl.value);
+    const qty = parseInt(qtyEl.value, 10);
     const currency = curEl.value;
-    const target = targetEl.value.trim();
-    const text = textEl.value.trim();
+    const target = (targetEl.value || '').trim();
+    const instructions = (textEl.value || '').trim();
 
-    if (qty < 1) return tg.showAlert('Минимальное количество: 1');
+    if (!qty || qty < 1) return tg.showAlert('Минимальное количество: 1');
     if (!target) return tg.showAlert('Укажите ссылку на объект');
-    // text is optional for some TG types, but good to have
 
     if (!isLinkValid) {
         return tg.showAlert('Пожалуйста, укажите корректную ссылку и дождитесь проверки.');
@@ -419,56 +554,69 @@ window.createTask = async function() {
     if (type === 'tg') {
         const stKey = subtypeEl.value;
         const conf = TG_TASK_TYPES[stKey];
-        pricePerItem = conf.cost;
-        workerReward = conf.reward;
-        taskName = conf.label;
+        if (!conf) return tg.showAlert('Выберите тип TG-задания');
+        pricePerItem = Number(conf.cost || 0);
+        workerReward = Number(conf.reward || 0);
+        taskName = conf.label || 'TG задание';
         subType = stKey;
-        checkType = 'auto'; // Most TG tasks are auto
+        checkType = 'auto';
     } else {
-        pricePerItem = parseInt(typeEl.selectedOptions[0].dataset.p);
+        pricePerItem = Number(typeEl.selectedOptions[0].dataset.p || 0);
         taskName = type === 'ya' ? 'Отзыв Яндекс' : 'Отзыв Google';
         checkType = 'manual';
-        // Manual review tasks
-        workerReward = Math.floor(pricePerItem * 0.5); 
+        workerReward = Math.floor(pricePerItem * 0.5);
     }
 
-    const subtotal = pricePerItem * qty;
-    // No extra 15% commission if using configured prices which are "Client Pays"
-    const totalCostRub = subtotal; 
+    const costRub = pricePerItem * qty;
 
-    let finalCost = totalCostRub;
-    if (currency === 'star') {
-        finalCost = Math.ceil(totalCostRub / 1.5); 
+    // UI-расчёт для сообщения (реальное списание делает сервер)
+    let finalCost = costRub;
+    if (currency === 'star') finalCost = Math.ceil(costRub / 1.5);
+
+    // tg_chat / tg_kind для auto TG
+    let tgChat = null;
+    let tgKind = "channel";
+    if (type === "tg") {
+        tgChat = target
+            .replace(/^https?:\/\/t\.me\//i, "@")
+            .replace(/^t\.me\//i, "@")
+            .split("/")[0];
+
+        if (subType === "tg_group") tgKind = "group";
     }
 
-    if (currency === 'rub') {
-        if (state.user.rub < finalCost) return tg.showAlert(`Недостаточно средств. Нужно: ${finalCost} ₽`);
-        state.user.rub -= finalCost;
-        addHistory('spend', finalCost, `Создание: ${taskName}`);
-    } else {
-        if (state.user.stars < finalCost) return tg.showAlert(`Недостаточно звезд. Нужно: ${finalCost} ⭐`);
-        state.user.stars -= finalCost;
-    }
+    const btn = document.getElementById('t-submit-btn');
+    if (btn) { btn.disabled = true; btn.classList.add('working'); }
 
-    const newTask = { 
-        id: Date.now(), 
-        type: type, 
-        subType: subType, // can be null
-        name: taskName, 
-        price: workerReward, // Store REWARD for worker
-        cost: pricePerItem,  // Store COST for reference
-        owner: 'me',
-        qty: qty,
-        target: target,
-        text: text,
-        checkType: checkType
-    };
-    
-    state.tasks.unshift(newTask); 
-    await saveData(); 
-    closeModal(); 
-    setFilter('my'); 
-    tg.showAlert(`✅ Задание создано! Списано ${finalCost} ${currency === 'rub' ? '₽' : '⭐'}`);
+    try {
+        await apiPost("/api/task/create", {
+            type,
+            title: taskName,                 // например "Подписка на канал"
+            target_url: target,
+            instructions: instructions,
+            reward_rub: workerReward,        // сколько платим исполнителю
+            cost_rub: costRub,               // сколько списать у заказчика (в ₽)
+            qty_total: qty,
+            check_type: (type === "tg") ? "auto" : "manual",
+            tg_chat: (type === "tg") ? tgChat : null,
+            tg_kind: (type === "tg") ? tgKind : null
+        });
+
+        // перезагружаем стейт из БД
+        await loadData();
+        render();
+        if (typeof renderWithdrawals === 'function') renderWithdrawals();
+
+        closeModal();
+        setFilter('my');
+
+        tg.showAlert(`✅ Задание создано!\nСписано: ${finalCost} ${currency === 'rub' ? '₽' : '⭐'}`);
+    } catch (e) {
+        console.error(e);
+        tg.showAlert('Ошибка создания задания: ' + (e && e.message ? e.message : 'unknown'));
+    } finally {
+        if (btn) { btn.disabled = false; btn.classList.remove('working'); }
+    }
 };
 
 window.handleTask = async function(btn, owner, id) {
@@ -554,70 +702,71 @@ window.handleTask = async function(btn, owner, id) {
     }
 };
 
-window.checkTgTask = function(id, subType) {
+window.checkTgTask = async function(id, subType) {
     const btn = document.getElementById('td-action-btn');
-    btn.disabled = true;
-    
-    let msg = 'Проверка подписки...';
-    if(subType === 'tg_poll') msg = 'Проверка голоса...';
-    if(subType === 'tg_react') msg = 'Проверка реакции...';
-    if(subType === 'tg_start') msg = 'Проверка запуска бота...';
-    if(subType === 'tg_mapp') msg = 'Проверка запуска App...';
+    if (btn) {
+        btn.disabled = true;
+        let msg = 'Проверка подписки...';
+        if (subType === 'tg_poll') msg = 'Проверка голоса...';
+        if (subType === 'tg_react') msg = 'Проверка реакции...';
+        if (subType === 'tg_start') msg = 'Проверка запуска бота...';
+        if (subType === 'tg_mapp') msg = 'Проверка запуска App...';
+        btn.innerHTML = `<span class="spin-icon">⏳</span> ${msg}`;
+    }
 
-    btn.innerHTML = `<span class="spin-icon">⏳</span> ${msg}`;
-    
-    // Simulate API call delay
-    setTimeout(async () => {
-        completeTaskLogic(id, 'Задание успешно проверено!', true);
-    }, 2500);
+    try {
+        // Auto TG кнопка “Проверить” тоже бьёт /api/task/submit
+        await apiPost("/api/task/submit", { task_id: id });
+
+        await loadData();
+        render();
+        closeModal();
+
+        tg.showAlert('✅ Задание принято! Если проверка авто — начисление произойдёт сразу/после подтверждения сервером.');
+    } catch (e) {
+        console.error(e);
+        tg.showAlert('Ошибка проверки: ' + (e && e.message ? e.message : 'unknown'));
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '⚡ Проверить выполнение';
+        }
+    }
 };
 
 window.submitReviewProof = async function(id) {
-    const user = document.getElementById('p-username').value.trim();
-    if(!user) return tg.showAlert('Укажите ваше имя/никнейм.');
-    if(!selectedProofFile) return tg.showAlert('Пожалуйста, прикрепите скриншот доказательства.');
-    
+    const user = (document.getElementById('p-username')?.value || '').trim();
+    if (!user) return tg.showAlert('Укажите ваше имя/никнейм.');
+
+    // (опционально) поле "ссылка на отзыв", если добавишь в HTML
+    const proofUrlEl = document.getElementById('p-proof-url') || document.getElementById('p-link') || null;
+    const proofUrl = proofUrlEl ? (proofUrlEl.value || '').trim() : "";
+
     const btn = document.getElementById('td-action-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spin-icon">⏳</span> Загрузка доказательств...';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spin-icon">⏳</span> Отправка...';
+    }
 
     try {
-        await new Promise(r => setTimeout(r, 1500));
-        
-        const task = state.tasks.find(t => t.id === id);
-        
-        // Simulate Supabase upload by creating a fake URL
-        const fakeScreenshotUrl = `https://placehold.co/600x400/000000/FFF?text=SCREENSHOT+${selectedProofFile.name}`;
+        // submitReviewProof() → /api/task/submit (пока без загрузки файлов)
+        await apiPost("/api/task/submit", {
+            task_id: id,
+            proof_text: user,
+            proof_url: proofUrl || ""
+        });
 
-        const proofItem = {
-            id: Date.now(),
-            taskId: task.id,
-            taskName: task.name,
-            targetUrl: task.target,
-            workerName: user,
-            price: task.price,
-            fileName: selectedProofFile.name,
-            screenshotUrl: fakeScreenshotUrl,
-            timestamp: new Date().toLocaleString()
-        };
-        
-        state.moderation.push(proofItem);
-        
-        // --- RECORD LIMIT TIMESTAMP ---
-        // We assume submitting a proof counts as an "attempt/execution" to prevent spamming
-        await recordTaskAction(task.type);
-        // ------------------------------
-        
-        await saveData();
-        updateAdminBadge();
+        await loadData();
+        render();
         closeModal();
-        tg.showAlert('✅ Отчет отправлен на модерацию!\nСредства поступят после проверки администратором.');
 
-    } catch(e) {
-        tg.showAlert('Ошибка загрузки');
+        tg.showAlert('✅ Отчет отправлен!\nДальше — модерация/автопроверка на сервере.');
+    } catch (e) {
         console.error(e);
-        btn.disabled = false;
-        btn.innerHTML = '📤 Отправить отчет';
+        tg.showAlert('Ошибка отправки: ' + (e && e.message ? e.message : 'unknown'));
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '📤 Отправить отчет';
+        }
     }
 };
 
@@ -707,7 +856,7 @@ function renderAdminWithdrawals() {
     list.innerHTML = '';
     
     // Filter only pending for action, or show all? Let's show all but sort pending first
-    const items = [...state.withdrawals].sort((a,b) => {
+    const items = [...state.adminWithdrawals].sort((a,b) => {
         if(a.status === 'pending' && b.status !== 'pending') return -1;
         if(a.status !== 'pending' && b.status === 'pending') return 1;
         return b.id - a.id;
@@ -754,45 +903,48 @@ function renderAdminWithdrawals() {
 }
 
 window.adminDecision = async function(itemId, approved) {
-    const item = state.moderation.find(i => i.id === itemId);
-    if(!item) return;
+    try {
+        await apiPost("/api/admin/proof/decision", {
+            proof_id: itemId,
+            approved: !!approved
+        });
 
-    if(approved) {
-        state.user.rub += parseInt(item.price);
-        addHistory('earn', parseInt(item.price), `Задание: ${item.taskName}`);
-        addXP(parseInt(item.price));
-        tg.showAlert(`✅ Отчет принят. Исполнителю начислено +${item.price} ₽`);
-    } else {
-        tg.showAlert('❌ Отчет отклонен.');
+        // Обновим данные (и админские, и пользовательский баланс/таски)
+        await loadAdminData();
+        await loadData();
+
+        tg.showAlert(approved ? '✅ Отчет принят.' : '❌ Отчет отклонен.');
+        render();
+        renderAdmin();
+        updateAdminBadge();
+
+        if (state.moderation.length === 0 && (state.adminWithdrawals || []).filter(w => w.status === 'pending').length === 0) {
+            closeModal();
+        }
+    } catch (e) {
+        console.error(e);
+        tg.showAlert('Ошибка: ' + (e && e.message ? e.message : 'не удалось выполнить действие'));
     }
-
-    state.moderation = state.moderation.filter(i => i.id !== itemId);
-    await saveData();
-    render(); 
-    renderAdmin(); 
-    updateAdminBadge();
-    
-    if(state.moderation.length === 0 && state.withdrawals.length === 0) closeModal();
 };
 
 window.adminProcessWithdrawal = async function(id, approved) {
-    const w = state.withdrawals.find(x => x.id === id);
-    if(!w) return;
+    try {
+        await apiPost("/api/admin/withdraw/decision", {
+            withdraw_id: id,
+            approved: !!approved
+        });
 
-    if(approved) {
-        w.status = 'paid';
-        tg.showAlert(`✅ Выплата ${w.amount}₽ подтверждена!`);
-    } else {
-        w.status = 'rejected';
-        // Refund logic
-        state.user.rub += w.amount;
-        addHistory('earn', w.amount, 'Возврат средств (Отмена вывода)');
-        tg.showAlert(`❌ Выплата отклонена. Средства возвращены.`);
+        await loadAdminData();
+        await loadData();
+
+        tg.showAlert(approved ? '✅ Выплата подтверждена.' : '❌ Выплата отклонена.');
+        render();
+        renderAdmin();
+        updateAdminBadge();
+    } catch (e) {
+        console.error(e);
+        tg.showAlert('Ошибка: ' + (e && e.message ? e.message : 'не удалось выполнить действие'));
     }
-
-    await saveData();
-    render();
-    renderAdmin();
 };
 
 function updateAdminBadge() {
@@ -800,8 +952,7 @@ function updateAdminBadge() {
     if(!badge) return;
     // Count pending tasks
     const count = state.moderation.length;
-    // Optionally add pending withdrawals count
-    const pendingW = state.withdrawals.filter(w => w.status === 'pending').length;
+    const pendingW = (state.adminWithdrawals || []).filter(w => w.status === 'pending').length;
     
     const total = count + pendingW;
     badge.innerText = total;
@@ -1006,10 +1157,28 @@ window.setFilter = function(f) {
     render();
 };
 
-window.processPay = function(method) {
-    const val = document.getElementById('sum-input').value;
+window.processPay = async function(method) {
+    const val = Number(document.getElementById('sum-input').value || 0);
     if(val < 300) return tg.showAlert('Минимальная сумма пополнения — 300 ₽');
-    const payload = { action: method, amount: val };
+
+    // ✅ CryptoBot: создаем счет через API и открываем ссылку, не закрывая Mini App
+    if (method === 'pay_crypto') {
+        try {
+            const r = await apiPost("/api/pay/cryptobot/create", { amount_rub: val });
+            const url = r.pay_url;
+            try {
+                tg.openTelegramLink(url);
+            } catch (e) {
+                window.open(url, "_blank");
+            }
+            return tg.showAlert('✅ Счёт CryptoBot создан. Оплати по ссылке — баланс обновится автоматически.');
+        } catch (e) {
+            return tg.showAlert('❌ Ошибка CryptoBot: ' + (e.message || e));
+        }
+    }
+
+    // остальное — как раньше через sendData (Stars / T-Bank)
+    const payload = { action: method, amount: String(val) };
     tg.sendData(JSON.stringify(payload));
 };
 
@@ -1047,54 +1216,78 @@ window.confirmTBank = function() {
 };
 
 // WITHDRAWAL LOGIC
-window.requestWithdraw = function() {
-    const amount = document.getElementById('w-amount').value;
-    const details = document.getElementById('w-details').value;
-    
-    if(!amount || !details) return tg.showAlert('Заполните все поля');
-    if(amount < 300) return tg.showAlert('Минимальная сумма: 300 ₽'); // Updated to 300
-    if(amount > state.user.rub) return tg.showAlert('Недостаточно средств на балансе');
+window.requestWithdraw = async function() {
+    const amount = (document.getElementById('w-amount')?.value || '').trim();
+    const details = (document.getElementById('w-details')?.value || '').trim();
 
-    state.user.rub -= parseInt(amount);
-    
-    const wdRequest = {
-        id: Date.now(),
-        amount: parseInt(amount),
-        details: details,
-        status: 'pending', // pending, paid, rejected
-        date: new Date().toLocaleDateString()
-    };
-    
-    state.withdrawals.unshift(wdRequest);
-    addHistory('withdraw', amount, 'Заявка на вывод');
+    if (!amount || !details) return tg.showAlert('Заполните все поля');
 
-    saveData();
-    render();
-    renderWithdrawals();
-    tg.showAlert('✅ Заявка создана! Ожидайте обработки.');
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt <= 0) return tg.showAlert('Некорректная сумма');
+    if (amt < 300) return tg.showAlert('Минимальная сумма: 300 ₽');
+
+    try {
+        await apiPost("/api/withdraw/create", {
+            amount_rub: amt,
+            details
+        });
+
+        // обновляем список выводов
+        const r = await apiPost("/api/withdraw/list", {});
+        state.withdrawals = r.withdrawals || [];
+        renderWithdrawals();
+
+        // и баланс/таски
+        await loadData();
+        render();
+
+        tg.showAlert('✅ Заявка создана! Ожидайте обработки.');
+    } catch (e) {
+        console.error(e);
+        tg.showAlert('Ошибка вывода: ' + (e && e.message ? e.message : 'unknown'));
+    }
 };
 
 function renderWithdrawals() {
     const list = document.getElementById('withdrawals-list');
-    if(!list) return;
+    if (!list) return;
     list.innerHTML = '';
-    
-    if(state.withdrawals.length === 0) {
+
+    const items = Array.isArray(state.withdrawals) ? state.withdrawals : [];
+    if (items.length === 0) {
         list.innerHTML = '<div style="font-size:12px; color:var(--text-dim); text-align:center;">Нет активных заявок</div>';
         return;
     }
-    
-    state.withdrawals.forEach(w => {
+
+    const fmtDate = (v) => {
+        if (!v) return '';
+        try {
+            const d = new Date(v);
+            if (isNaN(d.getTime())) return String(v);
+            return d.toLocaleString('ru-RU', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+            });
+        } catch {
+            return String(v);
+        }
+    };
+
+    items.forEach(w => {
+        const amount = Number(w.amount_rub ?? w.amount ?? w.sum ?? 0);
+        const created = w.created_at ?? w.date ?? w.created ?? '';
+        const status = String(w.status || 'pending');
+
         let stClass = 'st-pending';
         let stText = 'Ожидание';
-        if(w.status === 'paid') { stClass = 'st-paid'; stText = 'Выплачено'; }
-        if(w.status === 'rejected') { stClass = 'st-rejected'; stText = 'Отклонено'; }
+        if (status === 'paid') { stClass = 'st-paid'; stText = 'Выплачено'; }
+        if (status === 'rejected') { stClass = 'st-rejected'; stText = 'Отклонено'; }
 
         list.insertAdjacentHTML('beforeend', `
             <div style="background:var(--glass); padding:10px; border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                    <div style="font-weight:700; font-size:13px;">${w.amount} ₽</div>
-                    <div style="font-size:10px; color:var(--text-dim);">${w.date}</div>
+                    <div style="font-weight:700; font-size:13px;">${amount.toFixed(0)} ₽</div>
+                    <div style="font-size:10px; color:var(--text-dim);">${fmtDate(created)}</div>
                 </div>
                 <div class="status-badge ${stClass}">${stText}</div>
             </div>
@@ -1103,6 +1296,19 @@ function renderWithdrawals() {
 }
 
 window.openModal = function(id) { 
+    document.getElementById(id).classList.add('active'); 
+    if(id === 'm-create') {
+        document.getElementById('t-target').value = '';
+        document.getElementById('t-text').value = '';
+        document.getElementById('t-target-status').className = 'input-status';
+        document.getElementById('t-target-status').innerHTML = '';
+        isLinkValid = false;
+        recalc();
+    }
+    if(id === 'm-withdraw') {
+        renderWithdrawals();
+    }
+}; = function(id) { 
     document.getElementById(id).classList.add('active'); 
     if(id === 'm-create') {
         document.getElementById('t-target').value = '';
